@@ -1,0 +1,6 @@
+# Skill eval workspaces — regenerated each iteration, not source
+*-workspace/
+
+.DS_Store
+__pycache__/
+*.pyc

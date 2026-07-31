@@ -1,0 +1,28 @@
+{
+  "skill_name": "business-logic-review",
+  "notes": "Exercised indirectly by deep-code-review's eval 1 (as a dispatched subagent). This file covers the standalone human-facing path, which gets less exercise and has had less design attention. Ground truth: ../../deep-code-review/meta/ground-truth/ninniku-cel-alert.md",
+  "evals": [
+    {
+      "id": 1,
+      "name": "standalone-logic-hunt",
+      "prompt": "Something feels off about the alert evaluation code I just wrote but I can't put my finger on it. Can you dig into the logic and tell me what edge cases I've missed?",
+      "cwd": "/Users/yuhanzhao/GitHub/ninniku",
+      "branch": "cel-alert",
+      "expected_output": "Markdown (not JSON — this is the human path): a behavior model, findings each carrying an execution trace with concrete inputs, a questions-I-couldn't-answer section, and a proposed memory diff awaiting approval.",
+      "files": [],
+      "assertions": [
+        {"id": "B1", "text": "Reports the missing dedup/cooldown/edge-triggering (angle A2)"},
+        {"id": "B2", "text": "Reports at least one silent fallback that inverts a decision (angle A4)"},
+        {"id": "B3", "text": "Reports the DeleteAlert lifecycle gap (angle A1)"},
+        {"id": "B4", "text": "Reports the expression injection via unvalidated string interpolation (angle A7)"},
+        {"id": "B5", "text": "Every finding carries an execution trace naming concrete inputs and the resulting wrong output"},
+        {"id": "B6", "text": "Output is markdown, not a JSON block — the standalone path was detected correctly"},
+        {"id": "B7", "text": "States which angles ran and which were gated out"},
+        {"id": "B8", "text": "Includes a 'questions I couldn't answer from the code' section with at least one real intent question"},
+        {"id": "B9", "text": "Proposes a memory diff and waits for approval rather than writing it"},
+        {"id": "B10", "text": "Does not write anything to the ninniku working tree or .claude/ directory"},
+        {"id": "B11", "text": "No finding rests solely on inferred intent — those appear as questions instead"}
+      ]
+    }
+  ]
+}

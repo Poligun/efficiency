@@ -1,0 +1,50 @@
+{
+  "eval_id": 2,
+  "configuration": "with_skill",
+  "pass_rate": 1.0,
+  "passed": 8,
+  "failed": 0,
+  "total": 8,
+  "expectations": [
+    {
+      "text": "Honors the narrowing — does not report implementation-only logic bugs like the i32 overflow or the NaN fallback",
+      "passed": true,
+      "evidence": "No i32/overflow finding exists anywhere (the only 'i32' in the report is inside a quoted `BotStatus::Running as i32` line). The report states its method up front: 'I read the implementation freely to test whether the contract is honest ... but every finding is anchored at the proto or `build.rs` line that makes the promise, and I have not reported implementation defects you didn't ask about.' The NaN stub appears only inside F2, a contract-honesty finding anchored at `alert.proto:87` whose fix is proto-level ('Annotate these five options in the proto as not yet implemented, or reject them at `CreateAlert` with UNIMPLEMENTED'); the 0.0 fallback likewise appears only in D1, anchored at the new `well_known_types.proto:5` doc comment with a contract-level open question. Every one of the 17 items is anchored in a .proto (or build/codegen) line, none in src/."
+    },
+    {
+      "text": "Coverage statement says which aspects were skipped and that it was at the user's request",
+      "passed": true,
+      "evidence": "The '**Coverage.**' paragraph says 'Wire/API contracts only — the five protos plus `build.rs` ... I **skipped `code_api`, `logic`, and `convention` at your request** (\"skip the implementation\").' It names each skipped aspect explicitly and attributes the omission to the user's narrowing, and adds that the scope detector rated all three active/strong so 'that is real unreviewed surface, not an absence of things to find.' It also discloses the degraded verification (5 of 12 eligible findings verified, rest stamped `unverified`, ~40-minute harness outage). grading_mechanical.json S4_coverage_section: passed."
+    },
+    {
+      "text": "Reports the breaking reserved change in account_info.proto",
+      "passed": true,
+      "evidence": "F14 — '`AccountInfo` drops two PDT fields inside an alerting branch (MEDIUM · needs-decision)' anchored at `proto/poligun/ninniku/alpaca/account_info.proto:31`, which I verified is `reserved 7; // Was pattern_day_trader`. It quotes both `reserved 7` and `reserved 21` and names the client impact: 'a client compiled against the old descriptor will render \"not a pattern day trader, 0 day trades used\" for an account that is flagged and at its limit'. It also flags the scope problem ('being removed in a branch about CEL alerting, with no mention in any commit message') and honestly bounds blast radius to in-repo greps. Matches ground-truth G6."
+    },
+    {
+      "text": "Evaluates the contract against at least two named design traits (decoupling, naming, DRY, layering, symmetry, honesty, reversibility)",
+      "passed": true,
+      "evidence": "Honesty is named as the organizing thesis: 'The problem is **honesty**. This contract describes a working alerting system; behind it, notifications are never delivered...'. Decoupling is named and applied in D3: 'its id is welded to `bot_id`' ... 'Decoupling the ids after clients rely on the documented equality *is* a breaking change', which also works the symmetry trait ('`CreateAlert`/`UpdateAlert`/`DeleteAlert` exist; `GetAlert` and `ListAlerts` do not'). Reversibility is argued in F6 ('Converting `string` to `enum` on the same field number after release is wire-breaking, so this is free now and expensive later') and D2 ('Adding it later is wire-additive, so this isn't a migration trap'), and DRY/naming in F6 and F10 ('Renaming to `fraction_offset` is cleaner and still free')."
+    },
+    {
+      "text": "Reports at least one contract-honesty issue: a field or RPC the contract promises that the implementation does not deliver",
+      "passed": true,
+      "evidence": "Multiple, matching ground-truth G5. F1: 'Sink delivery is the contract's headline promise and never happens' — quoting the TODO at `src/bot/alert_bot.rs:105-107`. F4: '`UpdateAlert` is documented as working and returns UNIMPLEMENTED' (`src/server/mod.rs:636`). F7: '`NativeTrigger.initial_state` is accepted, stored, and never read' (grep → only `initial_state: None`). F8: '`required_symbols` promises a subscription that nothing performs' — 'grep -rn \"required_symbols\" src/ returns zero hits'. F9 covers `regular_hours`/`market_hours_filter` unread."
+    },
+    {
+      "text": "Every finding has severity, fix-clarity, and a file:line anchor in a .proto file",
+      "passed": true,
+      "evidence": "All 17 items (D1-D3, F1-F14) carry a severity and a fix-clarity token in the heading, e.g. 'D1 ... (CRITICAL · needs-decision · GROUNDED)', 'F10 ... (MEDIUM · mechanical · unverified)', each followed by a `path:line` anchor. grading_mechanical.json reports S1_labels_present passed and 56/58 anchors valid; the two 'nonexistent_paths' are the known artifacts (an abbreviated prose mention of `alert/alert.proto` and the external-consumer `ninniku-fe/package.js`), and every actual finding anchor uses a real path. I spot-verified anchors in /Users/yuhanzhao/GitHub/ninniku: `well_known_types.proto:5` = the Decimal doc comment, `alert/alert.proto:223`/`:226`/`:238`/`:242`, `ninniku.proto:61`/`:66`/`:226`, `alpaca/account_info.proto:31`, and `bot/bot.proto:6` (`import \"poligun/ninniku/alert/alert.proto\";`) all land exactly on the quoted lines."
+    },
+    {
+      "text": "Does NOT claim that the 'reserved' keyword is itself a breaking change",
+      "passed": true,
+      "evidence": "F14 pre-empts the trap explicitly: 'The `reserved` ritual is correct — that is not the finding, and reporting it as one would penalise the author for doing the right thing. The finding is *what* was removed and *where*.' The breakage claimed is the field removal's impact on out-of-repo clients, not the keyword, and the report deliberately holds it at MEDIUM 'precisely because I could not find a live consumer'."
+    },
+    {
+      "text": "Nothing was written to the ninniku working tree",
+      "passed": true,
+      "evidence": "grading_mechanical.json S7_worktree_clean: passed, with current status 'M Cargo.lock / M Cargo.toml / M src/bot/alert_bot.rs' byte-identical to the pre-run baseline — i.e. only the fixture's own pre-existing uncommitted changes, no new or modified files from the review."
+    }
+  ]
+}

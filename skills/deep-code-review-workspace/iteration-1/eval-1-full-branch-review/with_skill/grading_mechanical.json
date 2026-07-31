@@ -1,0 +1,35 @@
+{
+  "report": "iteration-1/eval-1-full-branch-review/with_skill/outputs/report.md",
+  "chars": 28391,
+  "S2_anchors_exist": {
+    "anchors_checked": 38,
+    "anchors_valid": 37,
+    "exempt": [
+      "cel-0.14.0/src/common/types/double.rs"
+    ],
+    "nonexistent_paths": [
+      "src/alert/translate.rs"
+    ],
+    "line_out_of_range": [],
+    "passed": false
+  },
+  "S5_finding_count": {
+    "count": 15,
+    "cap": 15,
+    "passed": true
+  },
+  "S1_labels_present": {
+    "severity_mentions": 28,
+    "fix_clarity_mentions": 18,
+    "findings": 15,
+    "passed": true
+  },
+  "S4_coverage_section": {
+    "passed": true
+  },
+  "S7_worktree_clean": {
+    "passed": true,
+    "current": "M Cargo.lock\n M Cargo.toml\n M src/bot/alert_bot.rs",
+    "baseline": "M Cargo.lock\n M Cargo.toml\n M src/bot/alert_bot.rs"
+  }
+}

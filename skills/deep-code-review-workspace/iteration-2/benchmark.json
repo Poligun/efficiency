@@ -1,0 +1,584 @@
+{
+  "metadata": {
+    "skill_name": "deep-code-review",
+    "skill_path": "/Users/yuhanzhao/GitHub/efficiency/skills/deep-code-review",
+    "executor_model": "claude-opus-5[1m]",
+    "analyzer_model": "claude-opus-5[1m]",
+    "timestamp": "2026-07-31T07:58:15Z",
+    "evals_run": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 1,
+    "contamination_gate": "CLEAN",
+    "caveat": "with_skill runs in this iteration are clean re-runs against the decontaminated skill (f586e62 and later): the contamination checker (check_contamination.py) passed before any run was launched. An earlier set of iteration-2 with_skill runs for evals 2-4 turned out to predate the decontamination commit and is archived under with_skill-pre-decontamination/ (see PRE-DECONTAMINATION-NOTE.md); it is excluded from this benchmark. Baselines (without_skill) are the iteration-1 baseline runs carried over unchanged (byte-identical artifacts, verified) \u2014 they never load the skill, so decontamination does not affect them; the trade-off is that they were executed in a different session than the with_skill runs. Executors: claude-opus-5, dispatched sequentially from a Claude Fable 5 orchestrator session to keep timing measurements uncontended."
+  },
+  "runs": [
+    {
+      "eval_id": 0,
+      "eval_name": "full-branch-review",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 18,
+        "failed": 0,
+        "total": 18,
+        "time_seconds": 2129.1,
+        "tokens": 337308,
+        "tool_calls": 131,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Reports that caller-supplied strings are interpolated into CEL expression source without validation, anchored in src/alert/mod.rs",
+          "passed": true,
+          "evidence": "F2 'Unvalidated `Decimal` and symbol strings are spliced into compiled CEL source' is anchored at `src/alert/mod.rs:32` and states `translate_built_in_trigger` builds CEL source text by format!-interpolating request strings inside single-quoted literals at eleven sites, and that `validate_alert_definition` checks only presence. Verified at src/alert/mod.rs:32: `let expr = format!(\"{{'fired': price >= decimal('{}')}}\", price.value);` \u2014 the quoted line is exact. Per the ground-truth Corrections section the assertion tests the defect, not the injection severity framing; F2 explicitly reasons the boundary question ('not privilege escalation \u2014 NativeTrigger already lets the same caller submit arbitrary CEL')."
+        },
+        {
+          "text": "Reports that DeleteAlert can never succeed, citing both that create starts the bot and that delete_bot rejects Running bots",
+          "passed": true,
+          "evidence": "F1 (CRITICAL, src/server/mod.rs:664): 'create_alert calls create_bot and then start_bot... delete_alert then calls delete_bot, which refuses any bot in that state, and never calls stop_bot.' Both halves are quoted: the `delete_bot(&request.alert_id)` call (verified src/server/mod.rs:664-665) and `if metadata.status == BotStatus::Running as i32 { return Err(format!(\"Cannot delete a running bot: {}\", bot_id).into()); }` (verified src/bot/bot_manager.rs:191-192). Matches ground truth G2 exactly."
+        },
+        {
+          "text": "Reports the total absence of deduplication, cooldown, or edge-triggering, so an alert re-fires every interval",
+          "passed": true,
+          "evidence": "D2 'Alert firing is level-triggered with no cooldown or edge detection' (HIGH, src/bot/alert_bot.rs:91) states the notify branch tests the level of `TriggerResult.fired`, not the transition, and cites the absence grep `rg -ni 'cooldown|debounce|throttle|dedup|idempot|last_fired|already_fired' src/ proto/` \u2192 no matches, matching ground truth G3's zero-hit grep. It quantifies the consequence: '~4,700 dispatches' from one crossing at a 5s interval."
+        },
+        {
+          "text": "Reports at least one silent fallback that inverts trigger semantics (decimal() parse failure to 0.0, unwrap_or(0.0) on prices, or reduce_bars returning NaN)",
+          "passed": true,
+          "evidence": "Two of the three are reported. F2 quotes the `decimal` registration returning 0.0 on parse failure and spells out the inversion: '\"1,250.00\" ... the parse fails, decimal() returns 0.0, and 180.25 >= 0.0 fires on the first tick and every tick after. The same input on FallBelow never fires.' F5 quotes `f64::NAN` from src/alert/alert_engine.rs:116 and argues the dead surface is wider than the breakout triggers. Both quotes verified verbatim at src/alert/alert_engine.rs:31-35 and :114-116."
+        },
+        {
+          "text": "Reports declared-but-unwired proto surface (market_hours_filter, required_symbols, or initial_state having no consumer)",
+          "passed": true,
+          "evidence": "All three from ground truth G5 are reported. F3 covers `required_symbols` ('rg -n required_symbols over the whole repo returns the proto line and nothing else'), anchored proto/poligun/ninniku/alert/alert.proto:238 \u2014 verified, that is the declaration line. F9 covers `NativeTrigger.initial_state` ('exactly two occurrences: the declaration, and initial_state: None in the translator'; declaration verified at alert.proto:53) and `EvalSchedule.market_hours_filter` ('zero references outside the proto')."
+        },
+        {
+          "text": "Reports the breaking reserved change in account_info.proto AND notes it is unrelated to the alerting feature",
+          "passed": true,
+          "evidence": "D1 is titled '`AccountInfo` drops two day-trading fields, and it's not this branch's business' at proto/poligun/ninniku/alpaca/account_info.proto:31 (verified: `reserved 7; // Was pattern_day_trader`). It explains the client impact (proto3 scalars have no presence, old clients decode false/0) and states the unrelatedness twice: 'This landed in commit aad07b3 \"Bump dependnecies\"... A breaking account-API change riding in a dependency-bump commit inside a CEL-alerting branch' and the Open question 'Why is this in this branch?'"
+        },
+        {
+          "text": "Reports the unchecked i32 multiplication or the silent time_unit fallthrough in lookback_duration",
+          "passed": true,
+          "evidence": "The assertion is satisfied by the second disjunct. F8 quotes the fallthrough verbatim \u2014 `match time_unit.to_uppercase().as_str() { \"MINUTE\" => 60, \"HOUR\" => 3600, _ => 60, }` \u2014 verified at src/alert/mod.rs:207-211 inside `lookback_duration`, and names the defect explicitly: 'client sends DAY, silently gets a 1-minute window'. It also notes '\"HOUR\" isn't representable in the canonical enum today'. The i32 overflow is not reported, but the assertion is an either/or."
+        },
+        {
+          "text": "Does NOT file a finding that module declaration lists should be alphabetized (src/alpaca/mod.rs contradicts it)",
+          "passed": true,
+          "evidence": "No finding (D1-D3, F1-F14) concerns module ordering. The convention ledger row reads 'mod declarations alphabetized | 5 | 1 | established but formatter-owned \u2014 excluded', and the only mention of out-of-order mods sits in Design notes with the explicit disclaimer 'Not a review finding \u2014 just a signal the wrap-up checklist was skipped'. Trap avoided."
+        },
+        {
+          "text": "Does NOT file 'missing tests' as a convention violation (repo has only 2 test modules total)",
+          "passed": true,
+          "evidence": "No finding mentions missing tests. The convention ledger explicitly disposes of it with the correct counts: 'Unit tests in #[cfg(test)] modules | 2 of 49 files | \u2014 | absent \u2014 \"add tests\" is a project decision, not a finding', matching ground truth's count of 2 test modules. Trap avoided."
+        },
+        {
+          "text": "Does NOT file findings that clippy or rustfmt would catch",
+          "passed": true,
+          "evidence": "All 17 filed items (D1-D3, F1-F14) are design/logic/contract issues no linter detects. The single formatter observation is quarantined in Design notes and self-disclaimed: 'cargo fmt wasn't run... Not a review finding \u2014 just a signal the wrap-up checklist was skipped, which is also why I didn't file anything else a formatter or clippy would catch.' Trap avoided."
+        },
+        {
+          "text": "Does NOT claim that the 'reserved' keyword is itself a breaking change",
+          "passed": true,
+          "evidence": "D1 pre-empts the trap in its second sentence: '`reserved` is the right ritual \u2014 that isn't the problem. The problem is that proto3 scalars have no presence, so any client still built against the old schema decodes false and 0.' The finding is located in the field removal and its client-decode impact, exactly as ground truth requires. Trap avoided."
+        },
+        {
+          "text": "Every finding has a severity, a fix-clarity label, and a file:line anchor",
+          "passed": true,
+          "evidence": "Every heading carries the triple, e.g. 'F1 \u2014 ... (CRITICAL \u00b7 scoped \u00b7 confirmed)' followed by `src/server/mod.rs:664`, and 'D1 \u2014 ... (HIGH \u00b7 needs-decision \u00b7 grounded)' followed by `proto/poligun/ninniku/alpaca/account_info.proto:31`. grading_mechanical.json S1_labels_present records severity_mentions 23, fix_clarity_mentions 17 across the findings and passed: true."
+        },
+        {
+          "text": "Every file:line anchor cited actually exists in the repo at that path",
+          "passed": true,
+          "evidence": "grading_mechanical.json S2_anchors_exist: 24 anchors checked, 24 valid, no nonexistent paths and no out-of-range lines (the only exemption is the external crate path cel-0.14.0/src/env.rs cited in Coverage as a refutation source, not a finding anchor). Spot-checks confirm: src/alert/mod.rs:32, src/alert/alert_engine.rs:116, src/server/mod.rs:664, alert.proto:53 and :238, and account_info.proto:31 all resolve to the claimed content."
+        },
+        {
+          "text": "Every finding quotes at least one line of real code as evidence",
+          "passed": true,
+          "evidence": "Each of D1-D3 and F1-F14 carries at least one fenced code block; several carry two (F1, F2, F5, F8, F9, F13). Spot-verification against /Users/yuhanzhao/GitHub/ninniku confirms the quotes are real and verbatim: the `format!(\"{{'fired': price >= decimal('{}')}}\", price.value)` line, the `decimal` closure returning 0.0, the `f64::NAN` sentinel with its comment, the `Cannot delete a running bot` guard, `repeated string required_symbols = 4;`, `string time_unit = 2; // e.g. \"MINUTE\"`, and `optional google.protobuf.Struct initial_state = 4;`."
+        },
+        {
+          "text": "Report includes a Coverage statement naming which aspects ran",
+          "passed": true,
+          "evidence": "A bolded '**Coverage.**' paragraph names all four aspects and their material: 'wire contracts (6 files), code API (5 files), business logic (18 files), conventions (3 new files) \u2014 plus the surface-consistency pass'. It also discloses the degraded verification honestly ('I dispatched 12 verifiers and only 4 returned \u2014 the other 8 died on upstream 529 Overloaded errors'), that nothing was skipped, and that no knowledge base existed. grading_mechanical.json S4_coverage_section: passed."
+        },
+        {
+          "text": "Total findings is 15 or fewer",
+          "passed": true,
+          "evidence": "grading_mechanical.json S5_finding_count records count 14 against cap 15, passed: true, and is designated authoritative for finding count. Noting the tension for the record: the report's own Coverage line says 'I'm reporting 17 items against a soft cap of ~15' (3 needs-decision items D1-D3 plus 14 findings F1-F14), and it discloses that it demoted eight lower-value observations to Design notes rather than dropping them. Graded per the authoritative mechanical count."
+        },
+        {
+          "text": "Findings are ordered by severity descending, with any CRITICAL/HIGH needing a decision surfaced first",
+          "passed": true,
+          "evidence": "The report opens with a dedicated '## Needs a decision before merge' section holding D1-D3, all HIGH \u00b7 needs-decision, ahead of everything else \u2014 exactly what the assertion demands. The '## Findings' section then runs strictly descending: F1 CRITICAL, F2 CRITICAL, F3-F8 HIGH, F9-F14 MEDIUM, with no inversion anywhere."
+        },
+        {
+          "text": "Nothing was written to the ninniku working tree (git status unchanged)",
+          "passed": true,
+          "evidence": "grading_mechanical.json S7_worktree_clean: passed, with current and baseline byte-identical ('M Cargo.lock / M Cargo.toml / M src/bot/alert_bot.rs' in both). The report corroborates intent: 'No knowledge base exists ... so nothing was recalled and ... nothing was written; the proposed seed is at the bottom', and the closing offer to post to GitHub is gated on user approval."
+        }
+      ]
+    },
+    {
+      "eval_id": 0,
+      "eval_name": "full-branch-review",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6667,
+        "passed": 12,
+        "failed": 6,
+        "total": 18,
+        "time_seconds": 619.6,
+        "tokens": 94858,
+        "tool_calls": 30,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Reports that caller-supplied strings are interpolated into CEL expression source without validation, anchored in src/alert/mod.rs",
+          "passed": true,
+          "evidence": "Finding #8 'CEL expression injection via `Decimal.value` and `symbol`': '`translate_built_in_trigger` builds CEL source by string interpolation of raw client input', quoting the real interpolation sites `format!(\"{{'fired': price >= decimal('{}')}}\", price.value)` (src/alert/mod.rs:32, verified) and `format!(\"latest_quote('{}').ask\", symbol)`. 'Nothing escapes the single quote. A `price.value` of `1') || true || decimal('1` produces a syntactically valid expression that always fires.' FRAMING: injection, but not the unexamined-CRITICAL call \u2014 it files it under 'Should fix' and bounds the blast radius itself: 'Blast radius is limited (the CEL context only exposes these few functions, and the caller is already authenticated for the account), but this is unvalidated input flowing into an interpreter.' It does not, however, note that NativeTrigger.expression already accepts arbitrary CEL from the same caller, which is why it still claims reach 'outside the alert's declared scope'."
+        },
+        {
+          "text": "Reports that DeleteAlert can never succeed, citing both that create starts the bot and that delete_bot rejects Running bots",
+          "passed": true,
+          "evidence": "Blocker #1 'An alert can never be deleted': '`create_alert` creates the bot and immediately calls `start_bot`, which drives status to `Running` in Redis (`bot_manager.rs:352-361`). `delete_alert` then calls `BotManager::delete_bot`', quoting the real guard 'if metadata.status == BotStatus::Running as i32 { return Err(...\"Cannot delete a running bot\"...) }'. Goes further than required: 'stop_bot is fire-and-forget over a broadcast channel ... so a naive stop_bot(); delete_bot() will still race.'"
+        },
+        {
+          "text": "Reports the total absence of deduplication, cooldown, or edge-triggering, so an alert re-fires every interval",
+          "passed": true,
+          "evidence": "Blocker #4 'Triggers re-fire every evaluation cycle \u2014 no edge detection': 'There is no \"fired\" latch, no cooldown, no re-arm condition anywhere in `AlertBot::evaluate` or the engine. At the default 30s interval a single crossing produces a notification every 30 seconds, indefinitely.' Also proposes the fix shape: 'either a debounce/cooldown field on `EvalSchedule` or `AlertDefinition`, or edge-detection baked into `translate_built_in_trigger`.'"
+        },
+        {
+          "text": "Reports at least one silent fallback that inverts trigger semantics (decimal() parse failure to 0.0, unwrap_or(0.0) on prices, or reduce_bars returning NaN)",
+          "passed": true,
+          "evidence": "Design note #15 '`decimal()` is a lie' hits two of the three: '`unwrap_or(0.0)` on conversion failure, and the same `unwrap_or(0.0)` in `decimal()` on parse failure, mean a failure silently produces **price = 0.0** \u2014 which immediately satisfies every `FallBelow` and every `TrailingBelow` condition. A parse failure should be an `ExecutionError`, not a value that fires the alert.' Blocker #2 covers the NaN path. Note the report self-demotes #15: 'That one is arguably a blocker; I've put it here only because the parse path is currently unreachable for well-formed clients.'"
+        },
+        {
+          "text": "Reports declared-but-unwired proto surface (market_hours_filter, required_symbols, or initial_state having no consumer)",
+          "passed": true,
+          "evidence": "All three, as separate items. #6 '`required_symbols` is accepted and completely ignored ... `grep` finds zero uses in `src/`. No subscription is ever created.' #12 '`initial_state` is silently ignored ... Grep finds exactly one occurrence in `src/`: `alert/mod.rs:160`, where the translator sets it to `None`' (anchor verified exact). #19 '`market_hours_filter` is accepted and ignored. Zero references in `src/`. An alert configured for regular hours only will evaluate 24/7.'"
+        },
+        {
+          "text": "Reports the breaking reserved change in account_info.proto AND notes it is unrelated to the alerting feature",
+          "passed": true,
+          "evidence": "#25, filed under a section literally titled 'Unrelated changes riding along': 'Removing `pattern_day_trader` and `daytrade_count` from `AccountInfo` ... it's a breaking API change bundled into a CEL alert branch ... Either regenerate the FE in this branch or split this into its own change.' Adds a verified downstream impact: `ninniku-fe/src/generated/poligun/ninniku/alpaca/account_info.ts` lines 44-46, 100-102, 159, 173 \u2014 I checked all four; they exist and still declare both fields."
+        },
+        {
+          "text": "Reports the unchecked i32 multiplication or the silent time_unit fallthrough in lookback_duration",
+          "passed": true,
+          "evidence": "Both halves. #7: 'Same class of issue in `alert/mod.rs:206-213`: `format!(\"{}s\", lookback_bars * multiplier * unit_seconds)` \u2014 Three client-controlled `i32`s multiplied with no checked arithmetic \u2014 overflow panics in debug, wraps in release.' #21: '`lookback_duration` silently defaults unknown units to 60s (`alert/mod.rs:206-213`) \u2014 \"DAY\", \"WEEK\", a typo, or an empty string all become minutes.' Anchor verified exact."
+        },
+        {
+          "text": "Does NOT file a finding that module declaration lists should be alphabetized (src/alpaca/mod.rs contradicts it)",
+          "passed": true,
+          "evidence": "not present \u2014 grepped for 'alphabet', 'sorted', 'order': no module-ordering item appears in findings #1-#27 or any section."
+        },
+        {
+          "text": "Does NOT file 'missing tests' as a convention violation (repo has only 2 test modules total)",
+          "passed": false,
+          "evidence": "Files it as a dedicated top-level section, '## No tests': 'The branch adds ~560 lines of intricate string-generating and value-marshalling logic and zero tests.' It does correctly refute the convention framing \u2014 'The repo has only two test modules total, so this isn't a regression in convention' \u2014 but does not stop there; it turns the observation into a concrete recommendation: 'but `translate_built_in_trigger` is the single highest-value thing in this codebase to unit test ... A table-driven test asserting the generated CEL for each combination would have caught the injection issue (#8), the unit-default issue (#21) ... `prost_value_to_cel` / `cel_value_to_prost_value` round-trip tests would have caught #13.' Per the grading rule, a report that files the trap as a recommendation fails; only outright dismissal passes."
+        },
+        {
+          "text": "Does NOT file findings that clippy or rustfmt would catch",
+          "passed": true,
+          "evidence": "No lint-class findings. The only mentions of the tools are positive verification: '`cargo check --locked` and `cargo clippy` both pass clean \u2014 no new warnings from the alert code' and, under What's good, '- Clean clippy, clean `cargo check`.' The closest items (#11's 'worth deduplicating the two grow-loops', the dead `Bar::get_highest_high`) are design/dead-code observations that clippy demonstrably does not flag here, since clippy is clean."
+        },
+        {
+          "text": "Does NOT claim that the 'reserved' keyword is itself a breaking change",
+          "passed": true,
+          "evidence": "States the opposite twice. #25: 'Marking the field numbers `reserved` is exactly right, and I assume this is deliberate cleanup \u2014 but it's a breaking API change bundled into a CEL alert branch.' What's good: '`reserved 7` / `reserved 21` rather than deleting field numbers outright.' The breaking-ness is correctly attributed to the removal and the un-regenerated client."
+        },
+        {
+          "text": "Every finding has a severity, a fix-clarity label, and a file:line anchor",
+          "passed": false,
+          "evidence": "No fix-clarity label appears anywhere in the report \u2014 grepped for the concept; findings #1-#27 carry only a number and a title. Severity exists only as coarse section membership ('Blockers' / 'Should fix' / 'Design notes worth considering'), not per finding, and the report contradicts its own grouping: #15 'That one is arguably a blocker; I've put it here only because...'. Anchors are also missing on several items: #4 (no file:line at all \u2014 only prose about `AlertBot::evaluate`), #9 (names `delete_alert` with no line), #23, #24 (no anchors). Fails all three sub-requirements."
+        },
+        {
+          "text": "Every file:line anchor cited actually exists in the repo at that path",
+          "passed": true,
+          "evidence": "Every anchor the report does give checks out. Verified: bot_manager.rs:352-361 = the BotAckEvent::Started status write; :183-196 = the delete_bot guard; :113-137 = the can_trade uniqueness check with the migration comment. server/mod.rs:602-668 spans create_alert through delete_alert; :682-702 = validate_alert_definition; :567-586 = update_bot_config. alert_engine.rs:23 = 'let now = Utc::now();'; :100-118 = the reduce_bars stub; :122 and :135 = the two `Program::compile` calls; :157 = the BuiltInTrigger translation; :171-173 and :177-187 exact; :210-212 = the last_eval_time fallback. alert_bot.rs:54-58, :63-65, :77, :79-85, :90, :105-107 exact. alert/mod.rs:160 = 'initial_state: None,'; :206-213 = lookback_duration. bar.rs:200-250 = get_highest_high through EOF. alpaca_market_data.rs:32-50 and alpaca/market_data/mod.rs:118-130 = the latest_quote/latest_trade cache reads. ninniku-fe account_info.ts lines 44-46/100-102/159/173 all confirmed. No fabricated anchor found."
+        },
+        {
+          "text": "Every finding quotes at least one line of real code as evidence",
+          "passed": false,
+          "evidence": "Roughly half the findings carry no quoted code. #4 (no-edge-detection) quotes nothing; #9 ('`DeleteAlert` will delete non-alert bots') quotes nothing, only a suggested `matches!` snippet that is not repo code; #10, #12, #14, #16, #17, #18, #19, #20, #22, #23, #24 are prose-only references. Where quotes do appear (#1, #3, #7, #8, #11, #15) they are accurate to the file. The assertion requires every finding to carry one."
+        },
+        {
+          "text": "Report includes a Coverage statement naming which aspects ran",
+          "passed": false,
+          "evidence": "No aspect coverage statement. The nearest is a scope line: 'Scope reviewed: the whole branch diff (`main...cel-alert`) plus the three uncommitted working-tree changes. `cargo check --locked` and `cargo clippy` both pass clean ... Focus below is design and logic, as requested.' That names the diff range and a stated focus, but never enumerates which review aspects (wire contract / code API / business logic / conventions) ran, which were skipped, or any caps or gaps. Credit where due: it does correctly flag that the uncommitted working-tree changes were included, which the ground truth calls out as the trap a diff-only review misses."
+        },
+        {
+          "text": "Total findings is 15 or fewer",
+          "passed": false,
+          "evidence": "27 numbered findings (#1-#27), plus an unnumbered '## No tests' section and a three-item 'Working-tree changes not yet committed' list. Nearly double the cap; the sprawl is exactly what the cap exists to prevent \u2014 items like #23 ('`create_bot(\"alert\", ...)` gives every alert bot the same `bot_name`') and #24 (CreateAlert atomicity) crowd the genuinely load-bearing findings."
+        },
+        {
+          "text": "Findings are ordered by severity descending, with any CRITICAL/HIGH needing a decision surfaced first",
+          "passed": false,
+          "evidence": "Ordering is by section, and the report breaks it explicitly. #15 is placed in 'Design notes worth considering' while the report itself says 'That one is arguably a blocker; I've put it here only because the parse path is currently unreachable for well-formed clients' \u2014 an admitted inversion. The one true needs-decision item, the breaking `AccountInfo` removal, lands at #25 of 27 in a trailing section rather than being surfaced first. With no per-finding severity labels there is nothing to order by within a section either: #23 (cosmetic bot_name) sits alongside #15 (a self-described blocker) in the same block."
+        },
+        {
+          "text": "Nothing was written to the ninniku working tree (git status unchanged)",
+          "passed": true,
+          "evidence": "Verified read-only per the grading instructions; independently confirmed `git status --short` still shows only the three pre-existing modifications (Cargo.lock, Cargo.toml, src/bot/alert_bot.rs), which the report itself enumerates unchanged under 'Working-tree changes not yet committed'."
+        }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "narrowed-api-review",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 2508.6,
+        "tokens": 259009,
+        "tool_calls": 82,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Honors the narrowing \u2014 does not report implementation-only logic bugs like the i32 overflow or the NaN fallback",
+          "passed": true,
+          "evidence": "No i32/overflow finding exists anywhere (the only 'i32' in the report is inside a quoted `BotStatus::Running as i32` line). The report states its method up front: 'I read the implementation freely to test whether the contract is honest ... but every finding is anchored at the proto or `build.rs` line that makes the promise, and I have not reported implementation defects you didn't ask about.' The NaN stub appears only inside F2, a contract-honesty finding anchored at `alert.proto:87` whose fix is proto-level ('Annotate these five options in the proto as not yet implemented, or reject them at `CreateAlert` with UNIMPLEMENTED'); the 0.0 fallback likewise appears only in D1, anchored at the new `well_known_types.proto:5` doc comment with a contract-level open question. Every one of the 17 items is anchored in a .proto (or build/codegen) line, none in src/."
+        },
+        {
+          "text": "Coverage statement says which aspects were skipped and that it was at the user's request",
+          "passed": true,
+          "evidence": "The '**Coverage.**' paragraph says 'Wire/API contracts only \u2014 the five protos plus `build.rs` ... I **skipped `code_api`, `logic`, and `convention` at your request** (\"skip the implementation\").' It names each skipped aspect explicitly and attributes the omission to the user's narrowing, and adds that the scope detector rated all three active/strong so 'that is real unreviewed surface, not an absence of things to find.' It also discloses the degraded verification (5 of 12 eligible findings verified, rest stamped `unverified`, ~40-minute harness outage). grading_mechanical.json S4_coverage_section: passed."
+        },
+        {
+          "text": "Reports the breaking reserved change in account_info.proto",
+          "passed": true,
+          "evidence": "F14 \u2014 '`AccountInfo` drops two PDT fields inside an alerting branch (MEDIUM \u00b7 needs-decision)' anchored at `proto/poligun/ninniku/alpaca/account_info.proto:31`, which I verified is `reserved 7; // Was pattern_day_trader`. It quotes both `reserved 7` and `reserved 21` and names the client impact: 'a client compiled against the old descriptor will render \"not a pattern day trader, 0 day trades used\" for an account that is flagged and at its limit'. It also flags the scope problem ('being removed in a branch about CEL alerting, with no mention in any commit message') and honestly bounds blast radius to in-repo greps. Matches ground-truth G6."
+        },
+        {
+          "text": "Evaluates the contract against at least two named design traits (decoupling, naming, DRY, layering, symmetry, honesty, reversibility)",
+          "passed": true,
+          "evidence": "Honesty is named as the organizing thesis: 'The problem is **honesty**. This contract describes a working alerting system; behind it, notifications are never delivered...'. Decoupling is named and applied in D3: 'its id is welded to `bot_id`' ... 'Decoupling the ids after clients rely on the documented equality *is* a breaking change', which also works the symmetry trait ('`CreateAlert`/`UpdateAlert`/`DeleteAlert` exist; `GetAlert` and `ListAlerts` do not'). Reversibility is argued in F6 ('Converting `string` to `enum` on the same field number after release is wire-breaking, so this is free now and expensive later') and D2 ('Adding it later is wire-additive, so this isn't a migration trap'), and DRY/naming in F6 and F10 ('Renaming to `fraction_offset` is cleaner and still free')."
+        },
+        {
+          "text": "Reports at least one contract-honesty issue: a field or RPC the contract promises that the implementation does not deliver",
+          "passed": true,
+          "evidence": "Multiple, matching ground-truth G5. F1: 'Sink delivery is the contract's headline promise and never happens' \u2014 quoting the TODO at `src/bot/alert_bot.rs:105-107`. F4: '`UpdateAlert` is documented as working and returns UNIMPLEMENTED' (`src/server/mod.rs:636`). F7: '`NativeTrigger.initial_state` is accepted, stored, and never read' (grep \u2192 only `initial_state: None`). F8: '`required_symbols` promises a subscription that nothing performs' \u2014 'grep -rn \"required_symbols\" src/ returns zero hits'. F9 covers `regular_hours`/`market_hours_filter` unread."
+        },
+        {
+          "text": "Every finding has severity, fix-clarity, and a file:line anchor in a .proto file",
+          "passed": true,
+          "evidence": "All 17 items (D1-D3, F1-F14) carry a severity and a fix-clarity token in the heading, e.g. 'D1 ... (CRITICAL \u00b7 needs-decision \u00b7 GROUNDED)', 'F10 ... (MEDIUM \u00b7 mechanical \u00b7 unverified)', each followed by a `path:line` anchor. grading_mechanical.json reports S1_labels_present passed and 56/58 anchors valid; the two 'nonexistent_paths' are the known artifacts (an abbreviated prose mention of `alert/alert.proto` and the external-consumer `ninniku-fe/package.js`), and every actual finding anchor uses a real path. I spot-verified anchors in /Users/yuhanzhao/GitHub/ninniku: `well_known_types.proto:5` = the Decimal doc comment, `alert/alert.proto:223`/`:226`/`:238`/`:242`, `ninniku.proto:61`/`:66`/`:226`, `alpaca/account_info.proto:31`, and `bot/bot.proto:6` (`import \"poligun/ninniku/alert/alert.proto\";`) all land exactly on the quoted lines."
+        },
+        {
+          "text": "Does NOT claim that the 'reserved' keyword is itself a breaking change",
+          "passed": true,
+          "evidence": "F14 pre-empts the trap explicitly: 'The `reserved` ritual is correct \u2014 that is not the finding, and reporting it as one would penalise the author for doing the right thing. The finding is *what* was removed and *where*.' The breakage claimed is the field removal's impact on out-of-repo clients, not the keyword, and the report deliberately holds it at MEDIUM 'precisely because I could not find a live consumer'."
+        },
+        {
+          "text": "Nothing was written to the ninniku working tree",
+          "passed": true,
+          "evidence": "grading_mechanical.json S7_worktree_clean: passed, with current status 'M Cargo.lock / M Cargo.toml / M src/bot/alert_bot.rs' byte-identical to the pre-run baseline \u2014 i.e. only the fixture's own pre-existing uncommitted changes, no new or modified files from the review."
+        }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "eval_name": "narrowed-api-review",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 6,
+        "failed": 2,
+        "total": 8,
+        "time_seconds": 441.3,
+        "tokens": 64857,
+        "tool_calls": 19,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Honors the narrowing \u2014 does not report implementation-only logic bugs like the i32 overflow or the NaN fallback",
+          "passed": true,
+          "evidence": "No i32-overflow finding appears anywhere. src/ is used as evidence for contract claims, and the report says so: 'Implementation was read only where the proto's own comments make a claim about runtime behavior that other teams would code against.' The NaN stub surfaces only inside a contract finding (B3), framed as an API decision \u2014 'NaN-poisoning is a reasonable *implementation* choice, but as an *API* choice \"accepted and silently inert\" is the worst of the three options' \u2014 with proto-level fixes ('`reserved` the field numbers ... or ... reject them with `INVALID_ARGUMENT`'). Same for decimal()->0.0 in M1, whose fix is proto text: 'For a money API this belongs in the proto text'. Borderline drift: the 'Rollout gap' section files a ninniku-fe package.json codegen bug, but that is tooling, not an implementation logic bug, and it is explicitly flagged as '(not the proto, but blocks the teams you're asking about)'."
+        },
+        {
+          "text": "Coverage statement says which aspects were skipped and that it was at the user's request",
+          "passed": false,
+          "evidence": "The only scope statement is 'Scope: the `.proto` surface only (`git diff main...HEAD -- proto/`). Implementation was read only where the proto's own comments make a claim about runtime behavior that other teams would code against.' followed by a 'Files reviewed' list. It names what was covered but never enumerates which review aspects were skipped, and never attributes the omission to the user's narrowing \u2014 no equivalent of 'at your request' / 'because you asked to skip the implementation' appears anywhere in the report."
+        },
+        {
+          "text": "Reports the breaking reserved change in account_info.proto",
+          "passed": true,
+          "evidence": "Dedicated section '## Unrelated breaking change riding along': '`account_info.proto` removes two fields in what is otherwise an alerts PR ... reserved 7; // Was pattern_day_trader / reserved 21; // Was daytrade_count', with client impact checked ('no component under `ninniku-fe/src/components`, `services`, or `misc` references either') and the recommendation to 'split this into its own commit or PR \u2014 an external consumer of `AccountInfo` silently loses two fields'."
+        },
+        {
+          "text": "Evaluates the contract against at least two named design traits (decoupling, naming, DRY, layering, symmetry, honesty, reversibility)",
+          "passed": true,
+          "evidence": "Naming (N3): '\"Native\" is a near-synonym for \"built-in\" for most readers, so `BuiltInTrigger` vs `NativeTrigger` is a confusing pair. `CelTrigger` or `ExpressionTrigger` says what it is.' DRY / single source of truth (M7): '`required_symbols` is two sources of truth for built-in triggers ... asks the client to restate derivable information and creates a state where the two disagree.' Layering/decoupling (B2): the bot-walking workaround 'leaks the bot abstraction that `CreateAlert` exists to hide'. Symmetry (B2 title): 'No read path \u2014 Create/Update/Delete with no Get or List'. Reversibility recurs: 'Free now; a wire-type change (`string` \u2192 `enum`) later.'"
+        },
+        {
+          "text": "Reports at least one contract-honesty issue: a field or RPC the contract promises that the implementation does not deliver",
+          "passed": true,
+          "evidence": "B1: 'The evaluator does not accept a `TriggerResult` message ... the documented example fails to parse. The proto comment is the contract here'. B3: 'Three groups of fields are in the schema and will show up in every generated client, but do nothing ... 2 of 6 baseline variants and 2 of 6 trigger types that accept configuration, report success, and then never fire.' M5: '`AlertBotParams` stores `AlertDefinition`, not `Alert` ... No RPC returns `Alert`, and nothing in `src/` references it.'"
+        },
+        {
+          "text": "Every finding has severity, fix-clarity, and a file:line anchor in a .proto file",
+          "passed": false,
+          "evidence": "No finding carries a severity label or a fix-clarity label anywhere in the report; the only gradation is section bucketing ('## Blockers', '## Should fix before other teams start', '## Nits'). Anchors are also frequently non-proto or absent: B1 anchors on '`parse_trigger_result` in `/Users/yuhanzhao/GitHub/ninniku/src/alert/alert_engine.rs:263`', B3 on '`/Users/yuhanzhao/GitHub/ninniku/src/alert/alert_engine.rs:98-118`', B4's implementation anchor is '`/Users/yuhanzhao/GitHub/ninniku/src/alert/mod.rs:127`', and M1, M2, M4, M6, M8, M9 quote proto text with no line number at all."
+        },
+        {
+          "text": "Does NOT claim that the 'reserved' keyword is itself a breaking change",
+          "passed": true,
+          "evidence": "'**Mechanically correct.** Using `reserved` rather than deleting the lines is the right way to retire field numbers, and it prevents accidental reuse.' The breakage is attributed to the field removal: 'an external consumer of `AccountInfo` silently loses two fields'."
+        },
+        {
+          "text": "Nothing was written to the ninniku working tree",
+          "passed": true,
+          "evidence": "Verified read-only for both runs per grading instructions."
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "gating-dependency-bump",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": 148.3,
+        "tokens": 33985,
+        "tool_calls": 9,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Correctly identifies that no review aspects are active and says so explicitly",
+          "passed": true,
+          "evidence": "The report has an explicit Coverage paragraph: \"Nothing ran, and that's the correct result rather than a gap... All four aspects were inactive for that reason, none at your request\", then enumerates each with a reason (\"`wire_api` \u2014 no wire contract, route, or CLI changes.\", \"`logic` \u2014 0 changed lines in source/wire files (threshold 25).\", \"`convention` \u2014 no new code; conventions are only audited on new code.\"). It also states the scope basis: \"Scope detection over `f451521..4df4a5b` (1 commit, clean working tree) found 2 changed files\". Verified against the fixture: HEAD is 4df4a5b \"Bump dependencies\", parent f451521, working tree clean, and `git diff --name-only main...chore/bump-deps` returns exactly Cargo.lock and Cargo.toml. grading_mechanical.json confirms S4_coverage_section passed."
+        },
+        {
+          "text": "Notes the reqwest 0.12.4 -> 0.13.0 major bump",
+          "passed": true,
+          "evidence": "\"**`reqwest` 0.12.4 \u2192 0.13.0 is a breaking bump.** For a `0.x` crate, Cargo treats the minor position as the major, so `0.12 \u2192 0.13` is a semver-incompatible release with no compatibility guarantee.\" The fixture diff confirms `-reqwest = \"0.12.4\"` / `+reqwest = \"0.13.0\"`. The semver reasoning is also correct for 0.x crates, and the report correctly qualifies blast radius: `grep -rn reqwest src/` in the fixture returns no hits, matching \"Nothing in `src/` imports `reqwest` today\"."
+        },
+        {
+          "text": "Does NOT invent findings about the unchanged application code (src/main.rs, src/config.rs)",
+          "passed": true,
+          "evidence": "The report reports zero findings (grading_mechanical.json S5_finding_count.count = 0) and states \"no findings were verified, so nothing below carries a verification verdict\" and \"There is no code here to find bugs in, and I'd rather say so than pad the report.\" src/main.rs and src/config.rs are mentioned once, only as negative evidence bounding the reqwest bump's blast radius (\"`grep` over `src/main.rs` and `src/config.rs` finds no reference\") \u2014 a verified-true claim, not a finding against that code. The two remaining observations concern Cargo.toml/Cargo.lock, both of which are in the diff."
+        },
+        {
+          "text": "Does NOT dispatch review subagents for inactive aspects",
+          "passed": true,
+          "evidence": "timing.json records \"subagents_dispatched\": 0 with \"note\": \"Early stop at Step 1 (all aspects inactive); short report shape.\" and only 9 tool uses. The report states this directly: \"No review agents were dispatched and no findings were verified\". Nothing in the report attributes any content to an aspect reviewer."
+        },
+        {
+          "text": "Uses substantially fewer tokens than eval 1",
+          "passed": true,
+          "evidence": "This run used 33,985 total tokens over 148.3s and 9 tool uses (with_skill/timing.json); eval 1's with_skill run used 337,308 tokens over 2129.1s, 131 tool uses, 17 subagents. That is a 9.9x reduction (89.9% fewer tokens), comfortably \"substantially fewer\". It is also cheaper than this eval's own without_skill run (47,353 tokens)."
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "eval_name": "gating-dependency-bump",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": 731.1,
+        "tokens": 47353,
+        "tool_calls": 33,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Correctly identifies that no review aspects are active and says so explicitly",
+          "passed": false,
+          "evidence": "The closest statement is a bare four-word line, \"No source files changed.\" \u2014 a fact about the diff composition, never a statement that no review aspect is active or that there is nothing to review. The report's framing is the opposite: \"**Verdict: don't merge as-is.**\" followed by three \"Blockers\" and two \"Should fix\" findings, including two that review the untouched application code. There is no coverage/gating statement of any kind."
+        },
+        {
+          "text": "Notes the reqwest 0.12.4 -> 0.13.0 major bump",
+          "passed": true,
+          "evidence": "\"one of those lines (`reqwest 0.12.4 \u2192 0.13.0`) is a breaking `0.x` bump that swaps the crate's entire TLS backend\"; the diff table marks \"reqwest 0.12.4  \u2192 0.13.0     <-- breaking\"."
+        },
+        {
+          "text": "Does NOT invent findings about the unchanged application code (src/main.rs, src/config.rs)",
+          "passed": false,
+          "evidence": "Finding 5 is filed against untouched application code: \"### 5. The crate doesn't compile \u2014 on this branch or on main\" citing \"error[E0433]: cannot find module or crate `tracing_subscriber`  --> src/main.rs:5:5\" and \"error[E0433]: cannot find module or crate `toml`  --> src/config.rs:12:12\", and the report itself concedes it is out of scope: \"This is pre-existing rather than introduced here, so it's not a reason to block the *diff*\". Finding 1 also anchors merge-blocking reasoning in untouched source: \"`gatekeeper` reads an `upstream_url` from config (`src/config.rs:6`)\". (Finding 4, reqwest being unused, is about the dependency and is not counted against this assertion.)"
+        },
+        {
+          "text": "Does NOT dispatch review subagents for inactive aspects",
+          "passed": true,
+          "evidence": "Not applicable \u2014 no skill was loaded, and the report's \"How I verified this\" section lists only direct tool work (\"`git diff main...chore/bump-deps`\", \"`cargo metadata` / `cargo tree -e normal`\", \"`cargo check --locked`\"). No evidence anywhere of dispatching aspect reviewers."
+        },
+        {
+          "text": "Uses substantially fewer tokens than eval 1",
+          "passed": true,
+          "evidence": "timing.json: 47,353 total tokens vs eval 1 without_skill 94,858 (50.1% reduction, same configuration) and vs eval 1 with_skill 207,324. Passes on the factual comparison, though it is 58.7% more than the with_skill run of this same eval (29,833) and took 731.1s across 33 tool uses on a 7-line diff."
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "standalone-logic-hunt",
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.9091,
+        "passed": 10,
+        "failed": 1,
+        "total": 11,
+        "time_seconds": 1089.9,
+        "tokens": 155179,
+        "tool_calls": 30,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Reports the missing dedup/cooldown/edge-triggering (angle A2)",
+          "passed": true,
+          "evidence": "Pinned as the top item under \"Needs a decision before merge\": \"### CRITICAL \u2014 A fired trigger re-fires on every tick, forever\" ... \"`evaluate` is level-triggered: it notifies for every result where `fired == true`, with no edge detection, no cooldown, and no persisted 'already notified' marker.\" Backed by the zero-hit greps `rg -i 'cooldown|debounce|throttle|dedup|idempot|last_fired|last_sent|seen' src/ proto/` and `rg -n 'prev_fired|was_fired|fired_at' src/ proto/`, which I re-ran against /Users/yuhanzhao/GitHub/ninniku and confirmed return nothing. Matches ground truth G3, including the restart caveat that `trigger_states`/`last_eval_time` are in-memory only."
+        },
+        {
+          "text": "Reports at least one silent fallback that inverts a decision (angle A4)",
+          "passed": true,
+          "evidence": "\"### CRITICAL \u2014 `decimal()` returns 0.0 on a bad string, inverting the comparison\" quotes the exact source (`s.parse::<f64>().unwrap_or_else(|_| { warn!(...); 0.0 })`, verified verbatim at src/alert/alert_engine.rs:30-35) and states both inversions: \"`price >= decimal('1,250.00')` becomes `price >= 0.0`, true for every real quote\" and \"`FallBelow{...}` becomes `price <= 0.0`, false for every real quote \u2192 the alert is silently dead for its entire life\". A second silent fallback is filed separately: the `_ => 60` arm in `lookback_duration` (verified at src/alert/mod.rs:206-213). Ground truth G4 satisfied."
+        },
+        {
+          "text": "Reports the DeleteAlert lifecycle gap (angle A1)",
+          "passed": true,
+          "evidence": "\"### HIGH \u2014 `DeleteAlert` can never succeed on an alert `CreateAlert` started\" \u2014 \"`create_alert` creates the bot and then starts it before returning (`src/server/mod.rs:618-629`), so every alert reaching the client is `Running`. `delete_bot` refuses exactly that\", quoting the guard `if metadata.status == BotStatus::Running as i32 { return Err(format!(\"Cannot delete a running bot: {}\", bot_id).into()); }` which I verified verbatim at src/bot/bot_manager.rs:191-193. It also cites the contradicting proto contract (\"DeleteAlert stops and removes it unconditionally\", ninniku.proto:61). Ground truth G2 satisfied."
+        },
+        {
+          "text": "Reports the expression injection via unvalidated string interpolation (angle A7)",
+          "passed": true,
+          "evidence": "\"### HIGH \u2014 Unvalidated client strings are interpolated into CEL source\" names all twelve `format!` sites (`mod.rs:32,41,52,55,61,68,88,90,96,103,127,147` plus baselines) and quotes `let expr = format!(\"{{'fired': price >= decimal('{}')}}\", price.value);`. It gives both an accidental case (`\"1'250.00\"` \u2192 compile failure \u2192 whole-alert outage) and a deliberate one (`\"0') || true || decimal('0\"` \u2192 unconditionally true). Per the ground-truth Corrections section, the assertion is about the defect and the escalation argument either way \u2014 the report makes the argument explicitly: \"this is *not* a privilege escalation. `NativeTrigger.expression` already accepts arbitrary CEL from the same caller by design\". G1 satisfied."
+        },
+        {
+          "text": "Every finding carries an execution trace naming concrete inputs and the resulting wrong output",
+          "passed": false,
+          "evidence": "14 of the 15 findings (grading_mechanical.json counts 15) carry an explicit \"**Trace.**\" block with concrete inputs and a wrong output, and those traces are unusually specific (e.g. \"`states[0] = {'hwm': 187.40}` ... `new_hwm = max_decimal(120.0, 187.40) = 187.40` \u2192 `fired: 120.0 <= 186.40` \u2192 **true immediately**\"). The exception is \"### MEDIUM \u2014 Five more declared surfaces have no consumer\", a bundled table with no trace: three of its five rows assert dead surface with no wrong output at all \u2014 \"`Alert` message ... Never constructed or read in Rust\", \"`BotMetadata.can_trade` ... Write-only\" (explicitly called \"harmless only because nothing reads the field\"), and \"`Bar::get_highest_high` ... Zero callers\" whose documented-effect cell is literally an em dash. The assertion is universal (\"Every finding\"), and this one filed finding does not meet it."
+        },
+        {
+          "text": "Output is markdown, not a JSON block \u2014 the standalone path was detected correctly",
+          "passed": true,
+          "evidence": "The file is markdown end to end: \"## Review: `cel-alert` \u2014 CEL-based alert engine, AlertBot, and the CreateAlert/DeleteAlert RPCs\", then `## Needs a decision before merge`, `## Findings`, `## Questions I couldn't answer from the code`, `## Proposed memory update`. No JSON envelope or structured-return block appears anywhere; code fences hold Rust snippets, shell greps, and unified diffs only. It is also addressed to the human author in second person (\"This needs your call on semantics\"), which is the standalone rather than subagent voice."
+        },
+        {
+          "text": "States which angles ran and which were gated out",
+          "passed": true,
+          "evidence": "The Coverage paragraph states it explicitly: \"`scope_detect.py` reports `code_lines: 1215` ... above the 400-line inline threshold, so A1 (lifecycle) and A10 (concurrency) ran as one read-only subagent and A6 (declared surface) as another; A2, A3, A4, A5, A7, A8, A9 ran inline\". It then accounts for the gating decisions: \"All ten angles ran \u2014 A7 gated in (CEL source built by `format!`), A8 (i32/i64 arithmetic on wire values), A9 (positional trigger state), A10 (`block_in_place`, `Mutex`, `tokio::spawn`)\". Nothing was gated out, and the report says so rather than leaving it unstated; it also records that no knowledge base exists so nothing was recalled."
+        },
+        {
+          "text": "Includes a 'questions I couldn't answer from the code' section with at least one real intent question",
+          "passed": true,
+          "evidence": "There is a section titled exactly \"## Questions I couldn't answer from the code\" with six numbered questions, several of which are genuine intent questions whose answers change the code. Q1: \"Is a trigger meant to fire once on the crossing, or repeatedly while the condition holds? This is the one that decides the shape of the CRITICAL fix.\" Q2: \"What was supposed to subscribe to `required_symbols`? ... I couldn't tell which from the code, because there is no subscription API on `MarketData` at all.\" Each question states what would change based on the answer (\"would make me downgrade that finding to LOW\")."
+        },
+        {
+          "text": "Proposes a memory diff and waits for approval rather than writing it",
+          "passed": true,
+          "evidence": "\"## Proposed memory update\" opens with \"**Nothing was written.** No knowledge base exists at either location, and I'm not going to create one without your say-so\", shows the `ls` output proving absence, then presents three unified diffs (`+++ b/.claude/knowledge/INDEX.md`, `domains/alert.md`, `review/findings/alert.md`) as proposals. It closes by handing the decision back: \"Say the word and which location you want, and I'll write it. Declining is fine\". I confirmed on disk that /Users/yuhanzhao/GitHub/ninniku/.claude/ contains only settings.local.json \u2014 no knowledge/ directory was created."
+        },
+        {
+          "text": "Does not write anything to the ninniku working tree or .claude/ directory",
+          "passed": true,
+          "evidence": "grading_mechanical.json S7_worktree_clean passed with current == baseline == \"M Cargo.lock\\n M Cargo.toml\\n M src/bot/alert_bot.rs\". I independently re-ran `git -C /Users/yuhanzhao/GitHub/ninniku status --porcelain` and got exactly those three pre-existing modifications, and `ls -la /Users/yuhanzhao/GitHub/ninniku/.claude/` shows only settings.local.json (dated before the run), no knowledge/ subdirectory. All evidence in the report is read-only greps and file reads."
+        },
+        {
+          "text": "No finding rests solely on inferred intent \u2014 those appear as questions instead",
+          "passed": true,
+          "evidence": "Every filed finding is anchored to code or to a written contract, not to guessed intent: the `required_symbols` finding quotes the proto's own promise (alert.proto:233-237) and a zero-hit grep I reproduced (`required_symbols` appears only in the proto; `initial_state` only as `initial_state: None` in src/alert/mod.rs), and routes the ambiguity out \u2014 \"See the questions section; I can't tell which you intended.\" The intent-dependent items are demoted to questions rather than filed: Q3 on whether `Decimal` validation is deliberate, Q4 on whether `UpdateBotConfig` should reach alert bots, and Q6 on `f64` thresholds which ends \"I did not file this as a finding.\" The report also discards a hypothesis it could not sustain (\"Refuted during trace-writing, so not reported: I expected the `reduce_bars` NaN sentinel to poison the trailing-stop watermark permanently. It doesn't\") rather than filing it on inference."
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "eval_name": "standalone-logic-hunt",
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4545,
+        "passed": 5,
+        "failed": 6,
+        "total": 11,
+        "time_seconds": 709.3,
+        "tokens": 87258,
+        "tool_calls": 23,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Reports the missing dedup/cooldown/edge-triggering (angle A2)",
+          "passed": true,
+          "evidence": "\"### H6. Nothing latches a firing \u2014 alerts repeat every interval indefinitely ... There is no fired-state, no cooldown, no one-shot flag, and no edge detection (fire only on the `false \u2192 true` transition). At a 5-second interval that's 720 notifications per hour for one crossing, forever\"."
+        },
+        {
+          "text": "Reports at least one silent fallback that inverts a decision (angle A4)",
+          "passed": true,
+          "evidence": "\"### C3. `decimal()` returning 0.0 on parse failure turns a typo into an alert storm\" with the input/behavior table: \"`RiseAbove{price: \\\"12.5O\\\"}` (letter O) | `price >= 0.0` | **fires every interval, forever**\" and \"`FallBelow{price: \\\"abc\\\"}` | `price <= 0.0` | never fires \u2014 silently dead alert\". C1 also covers the f64::NAN sentinel."
+        },
+        {
+          "text": "Reports the DeleteAlert lifecycle gap (angle A1)",
+          "passed": false,
+          "evidence": "not present \u2014 no finding anywhere addresses DeleteAlert, delete_bot, or the Running-status guard at bot_manager.rs:191. Grepping the report for \"delete\" returns only incidental uses: \"until someone deletes the alert\" (H6), \"the only way to change an alert is delete + recreate\" (L6), and \"delete them from the proto\" (suggested order). The create-always-starts / delete-rejects-Running composition is never identified."
+        },
+        {
+          "text": "Reports the expression injection via unvalidated string interpolation (angle A7)",
+          "passed": true,
+          "evidence": "\"### C4. User-controlled strings are interpolated straight into CEL source ... `let expr = format!(\\\"{{'fired': price >= decimal('{}')}}\\\", price.value);` ... A symbol of: `AAPL') || true || latest_quote('AAPL` produces a syntactically valid expression whose `fired` value the caller fully controls.\" Reported as a defect, which satisfies this assertion per the ground-truth Corrections note."
+        },
+        {
+          "text": "Every finding carries an execution trace naming concrete inputs and the resulting wrong output",
+          "passed": false,
+          "evidence": "Several of the 22 findings state a condition with no concrete input or resulting wrong output. \"### M4. `MarketHoursFilter` is entirely unimplemented ... declared in the proto and read nowhere. Equity alerts evaluate 24/7.\" \u2014 no trace. \"### H2. `NativeTrigger.initial_state` is never read\" gives a mechanism but no concrete input/output pair. \"### M9. CEL is recompiled every cycle\" and most of L1-L7 (\"**L2** \u2014 Binding names are inserted into the context with no reserved-word check\", \"**L5** \u2014 There are **zero tests** in `src/alert/`\") carry no execution trace at all. Some findings (C2, C3, M2) do trace concretely, so the property is inconsistent rather than absent \u2014 but not every finding carries it."
+        },
+        {
+          "text": "Output is markdown, not a JSON block \u2014 the standalone path was detected correctly",
+          "passed": true,
+          "evidence": "Markdown throughout: \"# Alert evaluation \u2014 logic review\" with ## Critical / ## High / ## Medium / ## Low sections and a \"## Suggested order\". No JSON envelope."
+        },
+        {
+          "text": "States which angles ran and which were gated out",
+          "passed": false,
+          "evidence": "not present \u2014 no angle vocabulary or coverage statement anywhere. The nearest is a list of files read: \"I dug through `src/alert/alert_engine.rs`, `src/alert/mod.rs`, `src/bot/alert_bot.rs`, the `alert.proto` contract, and the `cel` 0.14 crate source\", which names inputs, not which review angles ran or were gated out."
+        },
+        {
+          "text": "Includes a 'questions I couldn't answer from the code' section with at least one real intent question",
+          "passed": false,
+          "evidence": "not present \u2014 the report ends with \"## Suggested order\" and \"The single highest-leverage change is C1\". There is no questions section and no open intent question is posed to the user anywhere; intent-dependent items are asserted as findings instead."
+        },
+        {
+          "text": "Proposes a memory diff and waits for approval rather than writing it",
+          "passed": false,
+          "evidence": "not present \u2014 no memory, knowledge-base, or .claude/knowledge content is proposed anywhere in the report."
+        },
+        {
+          "text": "Does not write anything to the ninniku working tree or .claude/ directory",
+          "passed": true,
+          "evidence": "Verified read-only by the run harness; grading_mechanical.json for this run reports the worktree unchanged from the baseline (M Cargo.lock / M Cargo.toml / M src/bot/alert_bot.rs)."
+        },
+        {
+          "text": "No finding rests solely on inferred intent \u2014 those appear as questions instead",
+          "passed": false,
+          "evidence": "The report concedes in its own summary that two filed High findings are intent judgments, not code-anchored defects: \"6. **H3 / H6** \u2014 these are design decisions rather than bugs: persist state across restarts, and decide what \\\"fired\\\" means for repeat delivery.\" They are nonetheless filed under \"## High\" rather than raised as questions, and no questions section exists to route them to. \"### M5. No staleness check on quotes or trades ... Any price-based trigger needs a max-age guard\" is likewise a requirement inferred with no contract or code anchor cited."
+        }
+      ]
+    }
+  ]
+}

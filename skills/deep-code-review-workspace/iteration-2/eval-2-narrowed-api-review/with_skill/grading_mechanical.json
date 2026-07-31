@@ -1,0 +1,34 @@
+{
+  "report": "iteration-2/eval-2-narrowed-api-review/with_skill/outputs/report.md",
+  "chars": 32362,
+  "S2_anchors_exist": {
+    "anchors_checked": 58,
+    "anchors_valid": 56,
+    "exempt": [],
+    "nonexistent_paths": [
+      "alert/alert.proto",
+      "ninniku-fe/package.js"
+    ],
+    "line_out_of_range": [],
+    "passed": false
+  },
+  "S5_finding_count": {
+    "count": 14,
+    "cap": 15,
+    "passed": true
+  },
+  "S1_labels_present": {
+    "severity_mentions": 22,
+    "fix_clarity_mentions": 17,
+    "findings": 14,
+    "passed": true
+  },
+  "S4_coverage_section": {
+    "passed": true
+  },
+  "S7_worktree_clean": {
+    "passed": true,
+    "current": "M Cargo.lock\n M Cargo.toml\n M src/bot/alert_bot.rs",
+    "baseline": "M Cargo.lock\n M Cargo.toml\n M src/bot/alert_bot.rs"
+  }
+}

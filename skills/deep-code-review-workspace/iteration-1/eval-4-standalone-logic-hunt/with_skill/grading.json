@@ -1,0 +1,65 @@
+{
+  "eval_id": 4,
+  "configuration": "with_skill",
+  "pass_rate": 1.0,
+  "passed": 11,
+  "failed": 0,
+  "total": 11,
+  "expectations": [
+    {
+      "text": "Reports the missing dedup/cooldown/edge-triggering (angle A2)",
+      "passed": true,
+      "evidence": "\"### MEDIUM — Firing is level-triggered: nothing suppresses a repeat while the condition holds\" with the absence check \"`rg 'cooldown|debounce|throttle|dedup|idempot|last_fired|last_sent|seen|processed' src/` returns zero hits in the alert subsystem\" and the trace \"**120 notifications an hour, ~780 over one RTH session**, for one price move.\""
+    },
+    {
+      "text": "Reports at least one silent fallback that inverts a decision (angle A4)",
+      "passed": true,
+      "evidence": "\"### CRITICAL — A failed price parse becomes `0.0`, inverting the comparison it feeds\" quoting `s.parse::<f64>().unwrap_or_else(|_| { warn!(...); 0.0 })` and tracing \"the threshold becomes `0.0`, the expression becomes `price >= 0.0`, and the alert fires on the first tick and every tick after\"."
+    },
+    {
+      "text": "Reports the DeleteAlert lifecycle gap (angle A1)",
+      "passed": true,
+      "evidence": "\"### CRITICAL — `DeleteAlert` can never succeed for an alert that `CreateAlert` created\" — cites both halves: \"`create_alert` (`server/mod.rs:618-627`) calls `create_bot` ... and then immediately `start_bot`\" and the guard \"if metadata.status == BotStatus::Running as i32 { return Err(format!(\\\"Cannot delete a running bot: {}\\\", bot_id).into()); }\" at bot_manager.rs:191."
+    },
+    {
+      "text": "Reports the expression injection via unvalidated string interpolation (angle A7)",
+      "passed": true,
+      "evidence": "\"### MEDIUM — `validate_alert_definition` checks presence only, is bypassable, and user strings reach CEL source unescaped\" quoting `format!(\"latest_quote('{}').ask\", symbol)` and \"A payload like `symbol = \\\"AAPL').bid + latest_quote('TSLA\\\"` yields `latest_quote('AAPL').bid + latest_quote('TSLA').ask`\". Per the ground-truth Corrections section this passes in any severity framing; the report additionally answers the escalation question (\"this is **not** a privilege escalation ... reporting it as a robustness defect\"), which is the framing the ground truth endorses."
+    },
+    {
+      "text": "Every finding carries an execution trace naming concrete inputs and the resulting wrong output",
+      "passed": true,
+      "evidence": "All 12 ranked findings carry concrete input->wrong-output traces, most under an explicit **Trace.** label, e.g. finding 1: \"A client sends `RiseAbove { price: Decimal { value: \\\"1,250.00\\\" } }` ... 120 notifications an hour\"; finding 3: \"t=30s: AAPL drops to **94** → ... the `fired: true` is dropped\"; finding 6: \"NVDA at 120: `new_hwm = max(120, 250) = 250`, `fired: 120 <= 249` → **true immediately**\"; finding 10: \"`BreakoutAbove { lookback_bars: 20, multiplier: 1, time_unit: \\\"DAY\\\" }` ... emits `duration('1200s')` ... wrong by 1440×\". Finding 8 uses a table whose \"What a caller who sets it gets\" column supplies the same input/output pairing (\"The user receives the literal string `AAPL ask {{price}} crossed above {{threshold}}`\"). Caveat noted: the trailing \"## Also found, not ranked\" bullets are terser, but they are explicitly demarcated as unranked anchors (\"Anchors so you can pull any of them up\"), not filed findings."
+    },
+    {
+      "text": "Output is markdown, not a JSON block — the standalone path was detected correctly",
+      "passed": true,
+      "evidence": "Report is markdown throughout: \"## Review: alert subsystem — CEL-evaluated price triggers on a scheduled bot (`cel-alert` vs `e85ca8d9`)\" with prose sections and headed findings. No JSON envelope anywhere."
+    },
+    {
+      "text": "States which angles ran and which were gated out",
+      "passed": true,
+      "evidence": "\"**Angles run.** All ten. The six core angles (lifecycle, repeat-fire, boundary/window, fallback/sentinel, partial-failure, declared-surface) plus all four conditional angles, whose gates all fired: A7 taint ... A8 numeric ... A9 identity ... A10 concurrency ... **Nothing was gated out.**\" Each finding is also tagged with its angle (e.g. \"angle A4 (corroborated by A6, A7, A8)\")."
+    },
+    {
+      "text": "Includes a 'questions I couldn't answer from the code' section with at least one real intent question",
+      "passed": true,
+      "evidence": "\"## Questions I couldn't answer from the code\" with six intent questions, e.g. \"1. **Should a firing be edge-triggered, cooldown-based, or level-triggered?** Nothing in the contract commits ... If you confirm edge-triggering is intended, finding 12 goes from MEDIUM to CRITICAL\" and \"3. **Is per-trigger state meant to survive a restart?**\""
+    },
+    {
+      "text": "Proposes a memory diff and waits for approval rather than writing it",
+      "passed": true,
+      "evidence": "\"## Proposed memory update ... **I have written nothing.** `git status` in `ninniku` is unchanged. Below is the diff; say the word and I'll apply it.\" followed by a fenced diff creating .claude/knowledge/INDEX.md, domains/alerting.md and review/findings/alerting.md, then \"If you'd rather not keep memory at all, say so and I'll drop it\"."
+    },
+    {
+      "text": "Does not write anything to the ninniku working tree or .claude/ directory",
+      "passed": true,
+      "evidence": "Verified read-only per the run harness; grading_mechanical.json S7_worktree_clean shows current == baseline (\"M Cargo.lock\\n M Cargo.toml\\n M src/bot/alert_bot.rs\"). Report corroborates: \"I have written nothing. `git status` in `ninniku` is unchanged.\""
+    },
+    {
+      "text": "No finding rests solely on inferred intent — those appear as questions instead",
+      "passed": true,
+      "evidence": "The one intent-dependent finding is explicitly capped and routed to a question: \"**Severity is capped at MEDIUM deliberately.** Whether this is a bug depends on intent I cannot source ... so this is filed as a contract-shaped observation with the real question in the section below rather than asserted as a defect.\" Every other finding quotes code or the proto contract as its anchor, and the escalation judgment on A7 is stated with its reasoning rather than assumed (\"**Escalation question, answered explicitly:** this is **not** a privilege escalation\")."
+    }
+  ]
+}

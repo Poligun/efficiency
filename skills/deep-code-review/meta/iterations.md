@@ -152,3 +152,59 @@ from convenient repos.
   the other caps are soft.
 - Consider the `dependency` aspect (see `IMPROVEMENTS.md`) — gating was cheaper on the
   dep-bump branch and missed real supply-chain risk.
+
+---
+
+## Iteration 2 — 2026-07-31
+
+**Goal.** Re-measure all four evals against the decontaminated skill (f586e62), replacing
+iteration 1's tainted with_skill numbers. No skill changes this iteration — measurement only.
+
+**Contamination gate.** `check_contamination.py` ran before any eval launched: CLEAN. This
+is now the standing pre-run gate (TODO P0 #2): no with_skill run counts unless the checker
+passed against the skill tree the run will load.
+
+**A false start, caught by timeline forensics.** The first iteration-2 with_skill runs
+(evals 2–4, executed 22:06–22:25 on 07-30) predated the decontamination commit (22:31:38).
+Proof: eval-2's run-notes report as friction the absence of the exact SKILL.md paragraphs
+f586e62 added ("Don't wait idly", the A3-dispatch re-keying, the Coverage skip-reason
+distinction) — so the SKILL.md those runs read was pre-f586e62, i.e. still contaminated.
+They are archived under `with_skill-pre-decontamination/` (their run-notes drove real
+fixes and remain valuable) and excluded from the benchmark. Eval-1 with_skill had never
+been run. Lesson: **a decontamination commit doesn't clean runs that already happened;
+date every run against the skill tree it loaded.**
+
+**Clean runs.** Four sequential claude-opus-5 executors (sequential to keep timing
+uncontended), read-only on the fixtures, forbidden from `meta/`/`evals/`/workspace.
+Baselines carried over from iteration 1 unchanged (byte-identical; they never load the
+skill).
+
+| Eval | with_skill | baseline | tokens (skill/base) |
+|---|---|---|---|
+| full-branch-review | **18/18** | 12/18 | 337k / 95k |
+| narrowed-api-review | **8/8** | 6/8 | 259k / 65k |
+| gating-dependency-bump | **5/5** | 3/5 | **34k / 47k** |
+| standalone-logic-hunt | **10/11** | 5/11 | 155k / 87k |
+| **total** | **41/42 (98%)** | **26/42 (62%)** | 785k / 294k |
+
+**Headline: contamination had not inflated the totals.** The clean 41/42 equals the
+contaminated 41/42 (profile shifted: eval-1 17→18, eval-4 11→10). Iteration 1's
+structural conclusions stand on clean evidence now. Full analysis in
+`deep-code-review-workspace/iteration-2/benchmark.md` — short version: recall parity with
+baseline persists (fixture still can't discriminate must-finds), the dep-bump gap
+narrowed (clean skill now flags the hand-edited lock) but TLS/MSRV still need the
+`dependency` aspect, and the findings-cap ambiguity surfaced for the third time (eval-4's
+one miss is a bundled roll-up table without traces; eval-1 self-counts 17 "items" where
+the mechanical counter sees 14 findings).
+
+**Environmental noise, disclosed in-run.** Eval-1 lost 8/12 verifiers to API 529s;
+eval-2 hit a ~40-min harness tool outage (verification cut to 5/12, wall-clock inflated).
+Both runs disclosed the degradation in Coverage and still passed everything — meaning the
+assertion set tests verification's *labelling*, not its *depth*. The second fixture should
+include an assertion only a verifier can settle.
+
+**Changes for iteration 3.**
+- Skill changes are unblocked now that the baseline is trusted: dependency aspect
+  (TODO P1 #4), findings-cap enforcement + definition (P1 #6), scope_detect tests (P0 #3).
+- Build the second fixture with subtle bugs (P1 #5) before making any recall claim.
+- Keep the contamination gate mandatory before every with_skill run.

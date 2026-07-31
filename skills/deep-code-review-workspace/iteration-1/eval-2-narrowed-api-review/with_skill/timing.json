@@ -1,0 +1,1 @@
+{"total_tokens": 127818, "duration_ms": 2172681, "total_duration_seconds": 2172.7, "tool_uses": 39, "subagents": 14, "findings_reported": 10, "note": "run used the CONTAMINATED skill version"}

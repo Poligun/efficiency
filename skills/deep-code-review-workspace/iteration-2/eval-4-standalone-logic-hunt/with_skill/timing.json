@@ -1,0 +1,1 @@
+{"total_tokens": 155179, "duration_ms": 1089922, "total_duration_seconds": 1089.9, "tool_uses": 30, "subagents": 2, "findings_reported": 13, "note": "All 10 angles ran (6 inline, 4 via 2 Explore subagents). Executor: claude-opus-5 subagent."}

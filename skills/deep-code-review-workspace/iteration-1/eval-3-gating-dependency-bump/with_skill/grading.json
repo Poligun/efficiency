@@ -1,0 +1,35 @@
+{
+  "eval_id": 3,
+  "configuration": "with_skill",
+  "pass_rate": 1.0,
+  "passed": 5,
+  "failed": 0,
+  "total": 5,
+  "expectations": [
+    {
+      "text": "Correctly identifies that no review aspects are active and says so explicitly",
+      "passed": true,
+      "evidence": "\"**Coverage.** Scope detection ran and reported all four aspects inactive: no wire contract, route, or CLI changes (`wire_api`); no exported surface changed (`code_api`); 0 changed lines in source files, against a threshold of 25 (`logic`); no new code, and conventions are only audited on new code (`convention`).\" Also: \"There is no code to review here, so I stopped rather than manufacturing design opinions about a version table.\""
+    },
+    {
+      "text": "Notes the reqwest 0.12.4 -> 0.13.0 major bump",
+      "passed": true,
+      "evidence": "\"**reqwest 0.12.4 → 0.13.0 is a semver-breaking major bump**, and it's bundled in with three routine patch/minor bumps.\" plus the version table line \"reqwest  0.12.4  -> 0.13.0    MAJOR (0.x: minor position is breaking)\"."
+    },
+    {
+      "text": "Does NOT invent findings about the unchanged application code (src/main.rs, src/config.rs)",
+      "passed": true,
+      "evidence": "No finding cites src/main.rs or src/config.rs anywhere in the report. The report states the opposite intent explicitly: \"I did not review API design, business logic, or repo conventions. Not because the branch passed those checks, but because it does not contain the kind of change those checks read.\" The only non-dependency observation is about the touched Cargo.lock (\"`Cargo.toml` bumps `tracing` to 0.1.41, but `Cargo.lock` has no `tracing` entry at all\")."
+    },
+    {
+      "text": "Does NOT dispatch review subagents for inactive aspects",
+      "passed": true,
+      "evidence": "run-notes.md: \"## Subagents dispatched — **Zero.** Step 1's first stopping case fired\"; timing.json records \"subagents_dispatched\": 0. The report corroborates: \"No review subagents were dispatched and no verification pass ran.\""
+    },
+    {
+      "text": "Uses substantially fewer tokens than eval 1",
+      "passed": true,
+      "evidence": "timing.json: 29,833 total tokens vs eval 1 with_skill 207,324 (85.6% reduction) and eval 1 without_skill 94,858. 8 tool uses, 123.4s wall clock vs eval 1's 2258.3s."
+    }
+  ]
+}

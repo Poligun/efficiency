@@ -1,0 +1,35 @@
+{
+  "eval_id": 3,
+  "configuration": "without_skill",
+  "pass_rate": 0.6,
+  "passed": 3,
+  "failed": 2,
+  "total": 5,
+  "expectations": [
+    {
+      "text": "Correctly identifies that no review aspects are active and says so explicitly",
+      "passed": false,
+      "evidence": "The closest statement is a bare four-word line, \"No source files changed.\" — a fact about the diff composition, never a statement that no review aspect is active or that there is nothing to review. The report's framing is the opposite: \"**Verdict: don't merge as-is.**\" followed by three \"Blockers\" and two \"Should fix\" findings, including two that review the untouched application code. There is no coverage/gating statement of any kind."
+    },
+    {
+      "text": "Notes the reqwest 0.12.4 -> 0.13.0 major bump",
+      "passed": true,
+      "evidence": "\"one of those lines (`reqwest 0.12.4 → 0.13.0`) is a breaking `0.x` bump that swaps the crate's entire TLS backend\"; the diff table marks \"reqwest 0.12.4  → 0.13.0     <-- breaking\"."
+    },
+    {
+      "text": "Does NOT invent findings about the unchanged application code (src/main.rs, src/config.rs)",
+      "passed": false,
+      "evidence": "Finding 5 is filed against untouched application code: \"### 5. The crate doesn't compile — on this branch or on main\" citing \"error[E0433]: cannot find module or crate `tracing_subscriber`  --> src/main.rs:5:5\" and \"error[E0433]: cannot find module or crate `toml`  --> src/config.rs:12:12\", and the report itself concedes it is out of scope: \"This is pre-existing rather than introduced here, so it's not a reason to block the *diff*\". Finding 1 also anchors merge-blocking reasoning in untouched source: \"`gatekeeper` reads an `upstream_url` from config (`src/config.rs:6`)\". (Finding 4, reqwest being unused, is about the dependency and is not counted against this assertion.)"
+    },
+    {
+      "text": "Does NOT dispatch review subagents for inactive aspects",
+      "passed": true,
+      "evidence": "Not applicable — no skill was loaded, and the report's \"How I verified this\" section lists only direct tool work (\"`git diff main...chore/bump-deps`\", \"`cargo metadata` / `cargo tree -e normal`\", \"`cargo check --locked`\"). No evidence anywhere of dispatching aspect reviewers."
+    },
+    {
+      "text": "Uses substantially fewer tokens than eval 1",
+      "passed": true,
+      "evidence": "timing.json: 47,353 total tokens vs eval 1 without_skill 94,858 (50.1% reduction, same configuration) and vs eval 1 with_skill 207,324. Passes on the factual comparison, though it is 58.7% more than the with_skill run of this same eval (29,833) and took 731.1s across 33 tool uses on a 7-line diff."
+    }
+  ]
+}

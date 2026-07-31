@@ -1,0 +1,65 @@
+{
+  "eval_id": 4,
+  "configuration": "without_skill",
+  "pass_rate": 0.45,
+  "passed": 5,
+  "failed": 6,
+  "total": 11,
+  "expectations": [
+    {
+      "text": "Reports the missing dedup/cooldown/edge-triggering (angle A2)",
+      "passed": true,
+      "evidence": "\"### H6. Nothing latches a firing — alerts repeat every interval indefinitely ... There is no fired-state, no cooldown, no one-shot flag, and no edge detection (fire only on the `false → true` transition). At a 5-second interval that's 720 notifications per hour for one crossing, forever\"."
+    },
+    {
+      "text": "Reports at least one silent fallback that inverts a decision (angle A4)",
+      "passed": true,
+      "evidence": "\"### C3. `decimal()` returning 0.0 on parse failure turns a typo into an alert storm\" with the input/behavior table: \"`RiseAbove{price: \\\"12.5O\\\"}` (letter O) | `price >= 0.0` | **fires every interval, forever**\" and \"`FallBelow{price: \\\"abc\\\"}` | `price <= 0.0` | never fires — silently dead alert\". C1 also covers the f64::NAN sentinel."
+    },
+    {
+      "text": "Reports the DeleteAlert lifecycle gap (angle A1)",
+      "passed": false,
+      "evidence": "not present — no finding anywhere addresses DeleteAlert, delete_bot, or the Running-status guard at bot_manager.rs:191. Grepping the report for \"delete\" returns only incidental uses: \"until someone deletes the alert\" (H6), \"the only way to change an alert is delete + recreate\" (L6), and \"delete them from the proto\" (suggested order). The create-always-starts / delete-rejects-Running composition is never identified."
+    },
+    {
+      "text": "Reports the expression injection via unvalidated string interpolation (angle A7)",
+      "passed": true,
+      "evidence": "\"### C4. User-controlled strings are interpolated straight into CEL source ... `let expr = format!(\\\"{{'fired': price >= decimal('{}')}}\\\", price.value);` ... A symbol of: `AAPL') || true || latest_quote('AAPL` produces a syntactically valid expression whose `fired` value the caller fully controls.\" Reported as a defect, which satisfies this assertion per the ground-truth Corrections note."
+    },
+    {
+      "text": "Every finding carries an execution trace naming concrete inputs and the resulting wrong output",
+      "passed": false,
+      "evidence": "Several of the 22 findings state a condition with no concrete input or resulting wrong output. \"### M4. `MarketHoursFilter` is entirely unimplemented ... declared in the proto and read nowhere. Equity alerts evaluate 24/7.\" — no trace. \"### H2. `NativeTrigger.initial_state` is never read\" gives a mechanism but no concrete input/output pair. \"### M9. CEL is recompiled every cycle\" and most of L1-L7 (\"**L2** — Binding names are inserted into the context with no reserved-word check\", \"**L5** — There are **zero tests** in `src/alert/`\") carry no execution trace at all. Some findings (C2, C3, M2) do trace concretely, so the property is inconsistent rather than absent — but not every finding carries it."
+    },
+    {
+      "text": "Output is markdown, not a JSON block — the standalone path was detected correctly",
+      "passed": true,
+      "evidence": "Markdown throughout: \"# Alert evaluation — logic review\" with ## Critical / ## High / ## Medium / ## Low sections and a \"## Suggested order\". No JSON envelope."
+    },
+    {
+      "text": "States which angles ran and which were gated out",
+      "passed": false,
+      "evidence": "not present — no angle vocabulary or coverage statement anywhere. The nearest is a list of files read: \"I dug through `src/alert/alert_engine.rs`, `src/alert/mod.rs`, `src/bot/alert_bot.rs`, the `alert.proto` contract, and the `cel` 0.14 crate source\", which names inputs, not which review angles ran or were gated out."
+    },
+    {
+      "text": "Includes a 'questions I couldn't answer from the code' section with at least one real intent question",
+      "passed": false,
+      "evidence": "not present — the report ends with \"## Suggested order\" and \"The single highest-leverage change is C1\". There is no questions section and no open intent question is posed to the user anywhere; intent-dependent items are asserted as findings instead."
+    },
+    {
+      "text": "Proposes a memory diff and waits for approval rather than writing it",
+      "passed": false,
+      "evidence": "not present — no memory, knowledge-base, or .claude/knowledge content is proposed anywhere in the report."
+    },
+    {
+      "text": "Does not write anything to the ninniku working tree or .claude/ directory",
+      "passed": true,
+      "evidence": "Verified read-only by the run harness; grading_mechanical.json for this run reports the worktree unchanged from the baseline (M Cargo.lock / M Cargo.toml / M src/bot/alert_bot.rs)."
+    },
+    {
+      "text": "No finding rests solely on inferred intent — those appear as questions instead",
+      "passed": false,
+      "evidence": "The report concedes in its own summary that two filed High findings are intent judgments, not code-anchored defects: \"6. **H3 / H6** — these are design decisions rather than bugs: persist state across restarts, and decide what \\\"fired\\\" means for repeat delivery.\" They are nonetheless filed under \"## High\" rather than raised as questions, and no questions section exists to route them to. \"### M5. No staleness check on quotes or trades ... Any price-based trigger needs a max-age guard\" is likewise a requirement inferred with no contract or code anchor cited."
+    }
+  ]
+}

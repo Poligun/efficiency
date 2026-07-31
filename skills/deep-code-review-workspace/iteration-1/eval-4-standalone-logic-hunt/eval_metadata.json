@@ -1,0 +1,31 @@
+{
+  "eval_id": 3,
+  "eval_name": "standalone-logic-hunt",
+  "prompt": "Something feels off about the alert evaluation code I just wrote but I can't put my finger on it. Can you dig into the logic and tell me what edge cases I've missed?",
+  "assertions": [
+    "Reports the missing dedup/cooldown/edge-triggering (angle A2)",
+    "Reports at least one silent fallback that inverts a decision (angle A4)",
+    "Reports the DeleteAlert lifecycle gap (angle A1)",
+    "Reports the expression injection via unvalidated string interpolation (angle A7)",
+    "Every finding carries an execution trace naming concrete inputs and the resulting wrong output",
+    "Output is markdown, not a JSON block \u2014 the standalone path was detected correctly",
+    "States which angles ran and which were gated out",
+    "Includes a 'questions I couldn't answer from the code' section with at least one real intent question",
+    "Proposes a memory diff and waits for approval rather than writing it",
+    "Does not write anything to the ninniku working tree or .claude/ directory",
+    "No finding rests solely on inferred intent \u2014 those appear as questions instead"
+  ],
+  "assertion_ids": [
+    "B1",
+    "B2",
+    "B3",
+    "B4",
+    "B5",
+    "B6",
+    "B7",
+    "B8",
+    "B9",
+    "B10",
+    "B11"
+  ]
+}

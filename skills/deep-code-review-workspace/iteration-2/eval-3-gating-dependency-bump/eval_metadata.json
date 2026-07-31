@@ -1,0 +1,19 @@
+{
+  "eval_id": 2,
+  "eval_name": "gating-dependency-bump",
+  "prompt": "Review this branch for me before I merge it.",
+  "assertions": [
+    "Correctly identifies that no review aspects are active and says so explicitly",
+    "Notes the reqwest 0.12.4 -> 0.13.0 major bump",
+    "Does NOT invent findings about the unchanged application code (src/main.rs, src/config.rs)",
+    "Does NOT dispatch review subagents for inactive aspects",
+    "Uses substantially fewer tokens than eval 1"
+  ],
+  "assertion_ids": [
+    "GA1",
+    "GA2",
+    "GA3",
+    "GA4",
+    "GA5"
+  ]
+}

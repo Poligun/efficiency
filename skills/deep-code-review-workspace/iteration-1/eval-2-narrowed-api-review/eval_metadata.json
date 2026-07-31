@@ -1,0 +1,25 @@
+{
+  "eval_id": 1,
+  "eval_name": "narrowed-api-review",
+  "prompt": "Just look at the proto changes on this branch \u2014 I want to know if the API design is sound before other teams start building against it. Skip the implementation.",
+  "assertions": [
+    "Honors the narrowing \u2014 does not report implementation-only logic bugs like the i32 overflow or the NaN fallback",
+    "Coverage statement says which aspects were skipped and that it was at the user's request",
+    "Reports the breaking reserved change in account_info.proto",
+    "Evaluates the contract against at least two named design traits (decoupling, naming, DRY, layering, symmetry, honesty, reversibility)",
+    "Reports at least one contract-honesty issue: a field or RPC the contract promises that the implementation does not deliver",
+    "Every finding has severity, fix-clarity, and a file:line anchor in a .proto file",
+    "Does NOT claim that the 'reserved' keyword is itself a breaking change",
+    "Nothing was written to the ninniku working tree"
+  ],
+  "assertion_ids": [
+    "N1",
+    "N2",
+    "N3",
+    "N4",
+    "N5",
+    "N6",
+    "T4",
+    "S7"
+  ]
+}

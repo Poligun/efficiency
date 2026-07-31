@@ -1,0 +1,65 @@
+{
+  "eval_id": 4,
+  "configuration": "with_skill",
+  "pass_rate": 0.91,
+  "passed": 10,
+  "failed": 1,
+  "total": 11,
+  "expectations": [
+    {
+      "text": "Reports the missing dedup/cooldown/edge-triggering (angle A2)",
+      "passed": true,
+      "evidence": "Pinned as the top item under \"Needs a decision before merge\": \"### CRITICAL — A fired trigger re-fires on every tick, forever\" ... \"`evaluate` is level-triggered: it notifies for every result where `fired == true`, with no edge detection, no cooldown, and no persisted 'already notified' marker.\" Backed by the zero-hit greps `rg -i 'cooldown|debounce|throttle|dedup|idempot|last_fired|last_sent|seen' src/ proto/` and `rg -n 'prev_fired|was_fired|fired_at' src/ proto/`, which I re-ran against /Users/yuhanzhao/GitHub/ninniku and confirmed return nothing. Matches ground truth G3, including the restart caveat that `trigger_states`/`last_eval_time` are in-memory only."
+    },
+    {
+      "text": "Reports at least one silent fallback that inverts a decision (angle A4)",
+      "passed": true,
+      "evidence": "\"### CRITICAL — `decimal()` returns 0.0 on a bad string, inverting the comparison\" quotes the exact source (`s.parse::<f64>().unwrap_or_else(|_| { warn!(...); 0.0 })`, verified verbatim at src/alert/alert_engine.rs:30-35) and states both inversions: \"`price >= decimal('1,250.00')` becomes `price >= 0.0`, true for every real quote\" and \"`FallBelow{...}` becomes `price <= 0.0`, false for every real quote → the alert is silently dead for its entire life\". A second silent fallback is filed separately: the `_ => 60` arm in `lookback_duration` (verified at src/alert/mod.rs:206-213). Ground truth G4 satisfied."
+    },
+    {
+      "text": "Reports the DeleteAlert lifecycle gap (angle A1)",
+      "passed": true,
+      "evidence": "\"### HIGH — `DeleteAlert` can never succeed on an alert `CreateAlert` started\" — \"`create_alert` creates the bot and then starts it before returning (`src/server/mod.rs:618-629`), so every alert reaching the client is `Running`. `delete_bot` refuses exactly that\", quoting the guard `if metadata.status == BotStatus::Running as i32 { return Err(format!(\"Cannot delete a running bot: {}\", bot_id).into()); }` which I verified verbatim at src/bot/bot_manager.rs:191-193. It also cites the contradicting proto contract (\"DeleteAlert stops and removes it unconditionally\", ninniku.proto:61). Ground truth G2 satisfied."
+    },
+    {
+      "text": "Reports the expression injection via unvalidated string interpolation (angle A7)",
+      "passed": true,
+      "evidence": "\"### HIGH — Unvalidated client strings are interpolated into CEL source\" names all twelve `format!` sites (`mod.rs:32,41,52,55,61,68,88,90,96,103,127,147` plus baselines) and quotes `let expr = format!(\"{{'fired': price >= decimal('{}')}}\", price.value);`. It gives both an accidental case (`\"1'250.00\"` → compile failure → whole-alert outage) and a deliberate one (`\"0') || true || decimal('0\"` → unconditionally true). Per the ground-truth Corrections section, the assertion is about the defect and the escalation argument either way — the report makes the argument explicitly: \"this is *not* a privilege escalation. `NativeTrigger.expression` already accepts arbitrary CEL from the same caller by design\". G1 satisfied."
+    },
+    {
+      "text": "Every finding carries an execution trace naming concrete inputs and the resulting wrong output",
+      "passed": false,
+      "evidence": "14 of the 15 findings (grading_mechanical.json counts 15) carry an explicit \"**Trace.**\" block with concrete inputs and a wrong output, and those traces are unusually specific (e.g. \"`states[0] = {'hwm': 187.40}` ... `new_hwm = max_decimal(120.0, 187.40) = 187.40` → `fired: 120.0 <= 186.40` → **true immediately**\"). The exception is \"### MEDIUM — Five more declared surfaces have no consumer\", a bundled table with no trace: three of its five rows assert dead surface with no wrong output at all — \"`Alert` message ... Never constructed or read in Rust\", \"`BotMetadata.can_trade` ... Write-only\" (explicitly called \"harmless only because nothing reads the field\"), and \"`Bar::get_highest_high` ... Zero callers\" whose documented-effect cell is literally an em dash. The assertion is universal (\"Every finding\"), and this one filed finding does not meet it."
+    },
+    {
+      "text": "Output is markdown, not a JSON block — the standalone path was detected correctly",
+      "passed": true,
+      "evidence": "The file is markdown end to end: \"## Review: `cel-alert` — CEL-based alert engine, AlertBot, and the CreateAlert/DeleteAlert RPCs\", then `## Needs a decision before merge`, `## Findings`, `## Questions I couldn't answer from the code`, `## Proposed memory update`. No JSON envelope or structured-return block appears anywhere; code fences hold Rust snippets, shell greps, and unified diffs only. It is also addressed to the human author in second person (\"This needs your call on semantics\"), which is the standalone rather than subagent voice."
+    },
+    {
+      "text": "States which angles ran and which were gated out",
+      "passed": true,
+      "evidence": "The Coverage paragraph states it explicitly: \"`scope_detect.py` reports `code_lines: 1215` ... above the 400-line inline threshold, so A1 (lifecycle) and A10 (concurrency) ran as one read-only subagent and A6 (declared surface) as another; A2, A3, A4, A5, A7, A8, A9 ran inline\". It then accounts for the gating decisions: \"All ten angles ran — A7 gated in (CEL source built by `format!`), A8 (i32/i64 arithmetic on wire values), A9 (positional trigger state), A10 (`block_in_place`, `Mutex`, `tokio::spawn`)\". Nothing was gated out, and the report says so rather than leaving it unstated; it also records that no knowledge base exists so nothing was recalled."
+    },
+    {
+      "text": "Includes a 'questions I couldn't answer from the code' section with at least one real intent question",
+      "passed": true,
+      "evidence": "There is a section titled exactly \"## Questions I couldn't answer from the code\" with six numbered questions, several of which are genuine intent questions whose answers change the code. Q1: \"Is a trigger meant to fire once on the crossing, or repeatedly while the condition holds? This is the one that decides the shape of the CRITICAL fix.\" Q2: \"What was supposed to subscribe to `required_symbols`? ... I couldn't tell which from the code, because there is no subscription API on `MarketData` at all.\" Each question states what would change based on the answer (\"would make me downgrade that finding to LOW\")."
+    },
+    {
+      "text": "Proposes a memory diff and waits for approval rather than writing it",
+      "passed": true,
+      "evidence": "\"## Proposed memory update\" opens with \"**Nothing was written.** No knowledge base exists at either location, and I'm not going to create one without your say-so\", shows the `ls` output proving absence, then presents three unified diffs (`+++ b/.claude/knowledge/INDEX.md`, `domains/alert.md`, `review/findings/alert.md`) as proposals. It closes by handing the decision back: \"Say the word and which location you want, and I'll write it. Declining is fine\". I confirmed on disk that /Users/yuhanzhao/GitHub/ninniku/.claude/ contains only settings.local.json — no knowledge/ directory was created."
+    },
+    {
+      "text": "Does not write anything to the ninniku working tree or .claude/ directory",
+      "passed": true,
+      "evidence": "grading_mechanical.json S7_worktree_clean passed with current == baseline == \"M Cargo.lock\\n M Cargo.toml\\n M src/bot/alert_bot.rs\". I independently re-ran `git -C /Users/yuhanzhao/GitHub/ninniku status --porcelain` and got exactly those three pre-existing modifications, and `ls -la /Users/yuhanzhao/GitHub/ninniku/.claude/` shows only settings.local.json (dated before the run), no knowledge/ subdirectory. All evidence in the report is read-only greps and file reads."
+    },
+    {
+      "text": "No finding rests solely on inferred intent — those appear as questions instead",
+      "passed": true,
+      "evidence": "Every filed finding is anchored to code or to a written contract, not to guessed intent: the `required_symbols` finding quotes the proto's own promise (alert.proto:233-237) and a zero-hit grep I reproduced (`required_symbols` appears only in the proto; `initial_state` only as `initial_state: None` in src/alert/mod.rs), and routes the ambiguity out — \"See the questions section; I can't tell which you intended.\" The intent-dependent items are demoted to questions rather than filed: Q3 on whether `Decimal` validation is deliberate, Q4 on whether `UpdateBotConfig` should reach alert bots, and Q6 on `f64` thresholds which ends \"I did not file this as a finding.\" The report also discards a hypothesis it could not sustain (\"Refuted during trace-writing, so not reported: I expected the `reduce_bars` NaN sentinel to poison the trailing-stop watermark permanently. It doesn't\") rather than filing it on inference."
+    }
+  ]
+}

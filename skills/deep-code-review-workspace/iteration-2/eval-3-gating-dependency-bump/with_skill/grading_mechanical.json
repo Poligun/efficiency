@@ -1,0 +1,31 @@
+{
+  "report": "iteration-2/eval-3-gating-dependency-bump/with_skill/outputs/report.md",
+  "chars": 2114,
+  "S2_anchors_exist": {
+    "anchors_checked": 2,
+    "anchors_valid": 2,
+    "exempt": [],
+    "nonexistent_paths": [],
+    "line_out_of_range": [],
+    "passed": true
+  },
+  "S5_finding_count": {
+    "count": 0,
+    "cap": 15,
+    "passed": true
+  },
+  "S1_labels_present": {
+    "severity_mentions": 0,
+    "fix_clarity_mentions": 0,
+    "findings": 0,
+    "passed": false
+  },
+  "S4_coverage_section": {
+    "passed": true
+  },
+  "S7_worktree_clean": {
+    "passed": null,
+    "current": "",
+    "note": "no baseline supplied"
+  }
+}

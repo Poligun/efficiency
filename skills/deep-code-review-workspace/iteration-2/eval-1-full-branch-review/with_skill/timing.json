@@ -1,0 +1,1 @@
+{"total_tokens": 337308, "duration_ms": 2129139, "total_duration_seconds": 2129.1, "tool_uses": 131, "subagents": 17, "findings_reported": 17, "note": "8 of 12 verifiers died on upstream 529 Overloaded; disclosed in report Coverage. Executor: claude-opus-5 subagent."}

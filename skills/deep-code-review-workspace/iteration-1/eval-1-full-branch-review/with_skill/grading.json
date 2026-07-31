@@ -1,0 +1,100 @@
+{
+  "eval_id": 1,
+  "configuration": "with_skill",
+  "pass_rate": 0.94,
+  "passed": 17,
+  "failed": 1,
+  "total": 18,
+  "expectations": [
+    {
+      "text": "Reports that caller-supplied strings are interpolated into CEL expression source without validation, anchored in src/alert/mod.rs",
+      "passed": true,
+      "evidence": "PASS under the ground-truth 'Corrections' rule: reported as a correctness defect rather than as injection. F3: '`Decimal.value` is a raw string the API documents as unvalidated, and `validate_alert_definition` never inspects it. A client sending `\" 200\"` ... produces `price >= 0.0`, so the alert fires on its very first evaluation'. F11 files the root cause as a finding: 'Nothing validates or compiles a trigger until the first evaluation ... the code that could detect a malformed trigger — `translate_built_in_trigger` and `Program::compile` — runs exclusively on the evaluation path'. The interpolation mechanism is named explicitly in Proposed memory #5: 'user values are interpolated into CEL source text via `format!`, but `NativeTrigger.expression` already accepts arbitrary user CEL by design, so escaping grants no capability the caller lacks. The real consequence is that a malformed value yields a program accepted at create and permanently uncompilable at eval (F11).' FRAMING: correctness/MEDIUM, escalation question argued and dismissed with evidence — this is the reasoning the ground truth credits as better than its own. CAVEAT: the finding anchors are `src/alert/alert_engine.rs:31` and `src/server/mod.rs:682`, not `src/alert/mod.rs`; the 12 `format!` sites are never anchored directly."
+    },
+    {
+      "text": "Reports that DeleteAlert can never succeed, citing both that create starts the bot and that delete_bot rejects Running bots",
+      "passed": true,
+      "evidence": "F6 (HIGH, `src/server/mod.rs:664`): '`create_alert` starts the bot immediately, so every alert reaches `BotStatus::Running`. `delete_alert` then calls `delete_bot` with no preceding stop, and `delete_bot` rejects running bots.' Quotes `bot_manager.rs:191-193`: 'if metadata.status == BotStatus::Running as i32 { return Err(...\"Cannot delete a running bot\"...) }'. Both halves cited; verified both line anchors exist."
+    },
+    {
+      "text": "Reports the total absence of deduplication, cooldown, or edge-triggering, so an alert re-fires every interval",
+      "passed": true,
+      "evidence": "F12 (MEDIUM, `src/bot/alert_bot.rs:89`): 'Alerts re-notify every cycle while the condition holds ... The notify loop acts on `result.fired` with no comparison against the previous cycle ... there is no cooldown, dedup, or rate limit anywhere in `src/` or `proto/` (checked against a wide synonym list).' Quantified: '`rise_above AAPL 200` at a 30 s interval ... dispatches ~780 times per trading day for one crossing.'"
+    },
+    {
+      "text": "Reports at least one silent fallback that inverts trigger semantics (decimal() parse failure to 0.0, unwrap_or(0.0) on prices, or reduce_bars returning NaN)",
+      "passed": true,
+      "evidence": "Two of the three. F3: 'An unparseable `Decimal` becomes 0.0, firing the alert immediately' with the exact quoted source `s.parse::<f64>().unwrap_or_else(|_| { warn!(...); 0.0 })` at alert_engine.rs:31-36 (verified verbatim), plus '`FallBelow` with the same typo becomes permanently silent instead.' F5 goes further on the NaN path: 'The NaN sentinel raises an error in `cel` 0.14; it does not compare false', citing `partial_cmp(...).ok_or(ExecutionError::NoSuchOverload)?`."
+    },
+    {
+      "text": "Reports declared-but-unwired proto surface (market_hours_filter, required_symbols, or initial_state having no consumer)",
+      "passed": true,
+      "evidence": "F10 'Four declared fields have no reader' covers all three plus a fourth: '`AlertDefinition.required_symbols` (alert.proto:238) ... Zero readers in `src/`'; '`EvalSchedule.market_hours_filter` / `MarketHoursFilter.regular_hours` (alert.proto:187, :193) — zero readers'; '`NativeTrigger.initial_state` (alert.proto:53) ... The only two references in the repo are the declaration and `initial_state: None` in the translator'; plus `BotMetadata.can_trade`. All four anchors verified to exist."
+    },
+    {
+      "text": "Reports the breaking reserved change in account_info.proto AND notes it is unrelated to the alerting feature",
+      "passed": true,
+      "evidence": "F14 '`AccountInfo` PDT field removal rides along in an alerts branch' (`proto/poligun/ninniku/alpaca/account_info.proto:31`, verified): '`pattern_day_trader` (7) and `daytrade_count` (21) are removed and reserved ... in a branch whose stated purpose is price alerts ... a wire-visible removal of two PDT-compliance signals from a trading service is bundled into an unrelated feature branch.' Unrelatedness explicit, and the open question asks 'Was this intended as part of this branch'."
+    },
+    {
+      "text": "Reports the unchecked i32 multiplication or the silent time_unit fallthrough in lookback_duration",
+      "passed": true,
+      "evidence": "F8 (HIGH): '`lookback_duration` falls through to 60 seconds for anything it doesn't recognize while forwarding the raw string on to `reduce_bars`', quoting the verbatim `_ => 60,` arm from `src/alert/mod.rs:206-212`, with the consequence: '`time_unit: \"DAY\"` with `lookback_bars: 20` asks for DAY bars over a 20-*minute* window — wrong by 1440x, silently.' (The i32 overflow half is not reported, but the assertion is an OR.)"
+    },
+    {
+      "text": "Does NOT file a finding that module declaration lists should be alphabetized (src/alpaca/mod.rs contradicts it)",
+      "passed": true,
+      "evidence": "not present — grepped the report for 'alphabet', 'sorted', 'order.*module': zero hits. The only module-declaration comment is a Design note that declines to make it a finding: '`pub mod alert_bot;` exposes a module whose only item is `pub(super)` ... ledger verdict **mixed**, so no finding'."
+    },
+    {
+      "text": "Does NOT file 'missing tests' as a convention violation (repo has only 2 test modules total)",
+      "passed": true,
+      "evidence": "not present — grepped for 'test': the only two hits are inside the words 'latest'/'latest_quote'. The report contains no tests section, no missing-test finding, and no recommendation to add tests."
+    },
+    {
+      "text": "Does NOT file findings that clippy or rustfmt would catch",
+      "passed": true,
+      "evidence": "not present — grepped for 'clippy', 'rustfmt', 'cargo fmt': zero hits. No formatting, naming, unused-import, or lint-class items appear among D1-D2/F1-F15; the Design notes are design-level (error-type aliases, mod.rs size, undocumented percent units) and are explicitly labelled 'opinions'."
+    },
+    {
+      "text": "Does NOT claim that the 'reserved' keyword is itself a breaking change",
+      "passed": true,
+      "evidence": "F14 states the opposite explicitly: 'The `reserved` markers are the correct ritual and aren't the problem — the problem is that a wire-visible removal of two PDT-compliance signals from a trading service is bundled into an unrelated feature branch.'"
+    },
+    {
+      "text": "Every finding has a severity, a fix-clarity label, and a file:line anchor",
+      "passed": true,
+      "evidence": "All 17 severity-labelled items carry the triple, e.g. 'D1 — ... (CRITICAL · needs-decision · confirmed)' + '`proto/poligun/ninniku/alert/alert.proto:80`'; 'F9 — ... (MEDIUM · mechanical · confirmed)' + '`src/alert/alert_engine.rs:180`'; 'F15 — ... (LOW · mechanical · confirmed)' + '`src/bot/alert_bot.rs:90`'. Fix-clarity vocabulary is used consistently (needs-decision / scoped / mechanical). Design notes carry no labels but are explicitly demarcated as non-findings ('These are opinions, labelled as such')."
+    },
+    {
+      "text": "Every file:line anchor cited actually exists in the repo at that path",
+      "passed": true,
+      "evidence": "Spot-verified every distinct anchor against the working tree. Exact matches: alert.proto:80 = 'string symbol = 1;'; :42-45 = the `TriggerResult{...}` example comment; :154 = 'string time_unit = 3;'; :187 = 'optional MarketHoursFilter market_hours_filter = 2;'; :193 = 'bool regular_hours = 1;'; :53 = 'optional google.protobuf.Struct initial_state = 4;'; :209 = 'message TelegramNotification {'; :233-238 = the required_symbols block; :20 = the 'State to persist' comment. account_info.proto:31 = 'reserved 7; // Was pattern_day_trader'. bot.proto:20 = 'bool can_trade = 7;'. ninniku.proto:60-61 = the CreateAlert/DeleteAlert comment. alert_engine.rs:31-36, :98-99, :114-116, :179-180, :263-272, :210-212 all exact. alert_bot.rs:19-24, :62-65, :89-93, :105-107 exact. bot_manager.rs:147, :166, :191-193 exact. server/mod.rs:429-432, :664, :682, :685-700 exact. bar.rs:200 = 'pub async fn get_highest_high('. alpaca_market_data.rs:19 = the MarketData impl. No fabricated or drifted anchor found."
+    },
+    {
+      "text": "Every finding quotes at least one line of real code as evidence",
+      "passed": true,
+      "evidence": "All 17 items carry a fenced quote, and the quotes match the file byte-for-byte where checked. Examples: F3 quotes the decimal() closure exactly as it appears at alert_engine.rs:31-36; F15 quotes 'info!(\"AlertBot: trigger {} fired — {}\", i, result.fired);' which is the real uncommitted line 90; F5 quotes both the in-repo NaN comment and the external `cel-0.14.0/src/common/types/double.rs:89-94` line. F11's quote is marked '(abridged)' but reproduces the three real presence checks at server/mod.rs:687-699."
+    },
+    {
+      "text": "Report includes a Coverage statement naming which aspects ran",
+      "passed": true,
+      "evidence": "'**Coverage.** All four aspects ran at `strength: strong` — wire contracts (5 proto files + `build.rs`), code API (5 files), business logic (18 files), conventions (3 new files), plus a surface-consistency pass. Five finder agents, twelve verifiers (the cap ...)'. It also names three explicit gaps (merged findings, an unverified round-2 finding, no memory written) and states 'Nothing in the working tree was modified.'"
+    },
+    {
+      "text": "Total findings is 15 or fewer",
+      "passed": false,
+      "evidence": "17 severity-labelled findings: D1 and D2 under 'Needs a decision before merge' (both carry the full severity · fix-clarity · anchor treatment, so they count as findings) plus F1-F15 under 'Findings'. The report is aware of the cap and says so — 'I merged four separate \"declared field with no reader\" findings into F10 and cut three low-value items to Design notes to stay near the 15-finding cap' — but 'near' is not 'at or under'. Strictly over by 2. (If D1/D2 were excluded the count would be exactly 15; grading the literal assertion, this fails.)"
+    },
+    {
+      "text": "Findings are ordered by severity descending, with any CRITICAL/HIGH needing a decision surfaced first",
+      "passed": true,
+      "evidence": "The two needs-decision items are pinned in their own leading section: 'D1 ... (CRITICAL · needs-decision)', 'D2 ... (HIGH · needs-decision)'. The Findings section is then monotonically descending: F1 CRITICAL, F2 CRITICAL, F3-F8 HIGH, F9-F14 MEDIUM, F15 LOW. No inversion anywhere, and no item is self-described as misplaced."
+    },
+    {
+      "text": "Nothing was written to the ninniku working tree (git status unchanged)",
+      "passed": true,
+      "evidence": "Verified read-only per the grading instructions; independently confirmed `git status --short` still shows only the three pre-existing modifications (Cargo.lock, Cargo.toml, src/bot/alert_bot.rs). The report also states 'Nothing in the working tree was modified' and declines to write memory: 'this run was non-interactive, so nothing was created.'"
+    }
+  ]
+}

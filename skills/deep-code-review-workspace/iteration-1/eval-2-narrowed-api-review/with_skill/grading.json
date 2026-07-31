@@ -1,0 +1,50 @@
+{
+  "eval_id": 2,
+  "configuration": "with_skill",
+  "pass_rate": 1.0,
+  "passed": 8,
+  "failed": 0,
+  "total": 8,
+  "expectations": [
+    {
+      "text": "Honors the narrowing — does not report implementation-only logic bugs like the i32 overflow or the NaN fallback",
+      "passed": true,
+      "evidence": "No i32-overflow finding and no NaN-fallback finding is filed. Every one of the ten findings (F1-F10) is titled and anchored on a contract defect; src/ appears only as corroboration, which the report states up front: 'src/ was read as *evidence only* — to check whether a declared contract surface has a reader — so implementation defects that don't contradict the proto are not reported here.' Where NaN appears (F4) the finding is contract-honesty: 'The proto discloses none of it; the comments read as finished specifications' with the fix 'Disclose in the proto, or reject these variants at CreateAlert'. F9 likewise files the string-typed time_unit contract, not the fallthrough logic: 'Fix. Reuse marketdata.TimeUnit'."
+    },
+    {
+      "text": "Coverage statement says which aspects were skipped and that it was at the user's request",
+      "passed": true,
+      "evidence": "'**Coverage.** Only the **wire-contract aspect** ran, at your request. ... I skipped **code_api** (`src/alert/*`, `src/bot/alert_bot.rs`, `src/server/proto.rs` — Rust surface design), **business logic** (all 18 source files), and **conventions** (the new `src/alert/` module vs. repo patterns) because you asked to skip the implementation.'"
+    },
+    {
+      "text": "Reports the breaking reserved change in account_info.proto",
+      "passed": true,
+      "evidence": "Design notes: '**`AccountInfo` drops `pattern_day_trader` (7) and `daytrade_count` (21)** ... this has nothing to do with alerting, and it landed in commit `aad07b3` titled *\"Bump dependnecies\"* — a wire-breaking proto change inside a dependency-bump commit is precisely how breaking changes reach production unreviewed. ... a deployed client still reading them now sees `false`/`0`'. Client impact was checked across src/, ninniku-fe/, and analytics/, with the residual risk carried into 'Could not resolve'."
+    },
+    {
+      "text": "Evaluates the contract against at least two named design traits (decoupling, naming, DRY, layering, symmetry, honesty, reversibility)",
+      "passed": true,
+      "evidence": "Honesty is named as the organizing trait: '**The problem is not the shape, it's the honesty:** seven documented behaviors in `alert.proto` have no implementation behind them, and the proto discloses exactly one of them'. Naming in F10: 'name them differently (`percent_offset` vs. `offset_fraction`) so the two can't be confused'. Reversibility in F8/F9: 'a contract commitment you can loosen but never tighten, which is why it needs deciding before other teams read this file' and 'Changing the field type after other teams build against it is wire-breaking, so it's cheapest now'. Symmetry/read-back is examined in the design notes: 'there's no `GetAlert` or `ListAlerts`'. DRY in F9: 'Reuse `marketdata.TimeUnit`'."
+    },
+    {
+      "text": "Reports at least one contract-honesty issue: a field or RPC the contract promises that the implementation does not deliver",
+      "passed": true,
+      "evidence": "Six of them. F1: 'The contract documents `UpdateAlert` as \"Replace the AlertDefinition of an existing alert\" with no caveat ... The handler is a one-line stub.' F5: 'Grepping all of `src/` for `required_symbols` returns zero hits; the field is decoded and discarded.' F7: '`MarketHoursFilter` explicitly labels `pre_market` and `post_market` \"Not yet implemented\" but leaves `regular_hours` unmarked ... It isn't [honored]'. Also F2 (Telegram sink + {{name}} templating), F4 (breakout variants), F6 (initial_state never read)."
+    },
+    {
+      "text": "Every finding has severity, fix-clarity, and a file:line anchor in a .proto file",
+      "passed": true,
+      "evidence": "All ten findings carry all three, e.g. 'F8 — ... (HIGH · needs-decision · grounded) / `proto/poligun/ninniku/well_known_types.proto:7`', 'F1 — ... (CRITICAL · scoped · grounded) / `proto/poligun/ninniku/ninniku.proto:67`', 'F3 — ... (HIGH · mechanical · grounded) / `proto/poligun/ninniku/alert/alert.proto:46`', 'F9 — ... (MEDIUM · scoped · grounded) / `proto/poligun/ninniku/alert/alert.proto:94`'. Every anchor is a .proto path; spot-checked well_known_types.proto:7 and alert.proto (245 lines, so :46/:94/:130/:151/:193/:213/:238 are in range). Items lacking labels are explicitly not findings: 'Design notes / *Opinions, not defects.*'"
+    },
+    {
+      "text": "Does NOT claim that the 'reserved' keyword is itself a breaking change",
+      "passed": true,
+      "evidence": "'the `reserved` markers are correct practice and are not the issue; the removal is.'"
+    },
+    {
+      "text": "Nothing was written to the ninniku working tree",
+      "passed": true,
+      "evidence": "Verified read-only for both runs per grading instructions; report also states 'Nothing was posted to GitHub; this is a terminal report only.'"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "report": "iteration-1/eval-2-narrowed-api-review/without_skill/outputs/report.md",
+  "chars": 24185,
+  "S2_anchors_exist": {
+    "anchors_checked": 14,
+    "anchors_valid": 11,
+    "exempt": [],
+    "nonexistent_paths": [
+      "alert/alert.proto",
+      "alpaca/account_info.proto",
+      "proto/poligun/ninniku/alert/cel_schema.proto"
+    ],
+    "line_out_of_range": [],
+    "passed": false
+  },
+  "S5_finding_count": {
+    "count": 0,
+    "cap": 15,
+    "passed": true
+  },
+  "S1_labels_present": {
+    "severity_mentions": 0,
+    "fix_clarity_mentions": 0,
+    "findings": 0,
+    "passed": false
+  },
+  "S4_coverage_section": {
+    "passed": false
+  },
+  "S7_worktree_clean": {
+    "passed": true,
+    "current": "M Cargo.lock\n M Cargo.toml\n M src/bot/alert_bot.rs",
+    "baseline": "M Cargo.lock\n M Cargo.toml\n M src/bot/alert_bot.rs"
+  }
+}

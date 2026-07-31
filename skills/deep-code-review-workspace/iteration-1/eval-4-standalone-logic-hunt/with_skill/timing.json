@@ -1,0 +1,1 @@
+{"total_tokens": 247861, "duration_ms": 1525658, "total_duration_seconds": 1525.7, "tool_uses": 53, "findings_reported": 12, "note": "run used the CONTAMINATED skill version; G1/G3-class findings are not independent evidence"}

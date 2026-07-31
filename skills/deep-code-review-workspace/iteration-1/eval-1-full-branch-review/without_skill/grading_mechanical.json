@@ -1,0 +1,31 @@
+{
+  "report": "iteration-1/eval-1-full-branch-review/without_skill/outputs/report.md",
+  "chars": 22594,
+  "S2_anchors_exist": {
+    "anchors_checked": 12,
+    "anchors_valid": 12,
+    "exempt": [],
+    "nonexistent_paths": [],
+    "line_out_of_range": [],
+    "passed": true
+  },
+  "S5_finding_count": {
+    "count": 14,
+    "cap": 15,
+    "passed": true
+  },
+  "S1_labels_present": {
+    "severity_mentions": 0,
+    "fix_clarity_mentions": 0,
+    "findings": 14,
+    "passed": false
+  },
+  "S4_coverage_section": {
+    "passed": false
+  },
+  "S7_worktree_clean": {
+    "passed": true,
+    "current": "M Cargo.lock\n M Cargo.toml\n M src/bot/alert_bot.rs",
+    "baseline": "M Cargo.lock\n M Cargo.toml\n M src/bot/alert_bot.rs"
+  }
+}

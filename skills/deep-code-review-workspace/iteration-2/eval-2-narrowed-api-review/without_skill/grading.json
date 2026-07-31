@@ -1,0 +1,50 @@
+{
+  "eval_id": 2,
+  "configuration": "without_skill",
+  "pass_rate": 0.75,
+  "passed": 6,
+  "failed": 2,
+  "total": 8,
+  "expectations": [
+    {
+      "text": "Honors the narrowing — does not report implementation-only logic bugs like the i32 overflow or the NaN fallback",
+      "passed": true,
+      "evidence": "No i32-overflow finding appears anywhere. src/ is used as evidence for contract claims, and the report says so: 'Implementation was read only where the proto's own comments make a claim about runtime behavior that other teams would code against.' The NaN stub surfaces only inside a contract finding (B3), framed as an API decision — 'NaN-poisoning is a reasonable *implementation* choice, but as an *API* choice \"accepted and silently inert\" is the worst of the three options' — with proto-level fixes ('`reserved` the field numbers ... or ... reject them with `INVALID_ARGUMENT`'). Same for decimal()->0.0 in M1, whose fix is proto text: 'For a money API this belongs in the proto text'. Borderline drift: the 'Rollout gap' section files a ninniku-fe package.json codegen bug, but that is tooling, not an implementation logic bug, and it is explicitly flagged as '(not the proto, but blocks the teams you're asking about)'."
+    },
+    {
+      "text": "Coverage statement says which aspects were skipped and that it was at the user's request",
+      "passed": false,
+      "evidence": "The only scope statement is 'Scope: the `.proto` surface only (`git diff main...HEAD -- proto/`). Implementation was read only where the proto's own comments make a claim about runtime behavior that other teams would code against.' followed by a 'Files reviewed' list. It names what was covered but never enumerates which review aspects were skipped, and never attributes the omission to the user's narrowing — no equivalent of 'at your request' / 'because you asked to skip the implementation' appears anywhere in the report."
+    },
+    {
+      "text": "Reports the breaking reserved change in account_info.proto",
+      "passed": true,
+      "evidence": "Dedicated section '## Unrelated breaking change riding along': '`account_info.proto` removes two fields in what is otherwise an alerts PR ... reserved 7; // Was pattern_day_trader / reserved 21; // Was daytrade_count', with client impact checked ('no component under `ninniku-fe/src/components`, `services`, or `misc` references either') and the recommendation to 'split this into its own commit or PR — an external consumer of `AccountInfo` silently loses two fields'."
+    },
+    {
+      "text": "Evaluates the contract against at least two named design traits (decoupling, naming, DRY, layering, symmetry, honesty, reversibility)",
+      "passed": true,
+      "evidence": "Naming (N3): '\"Native\" is a near-synonym for \"built-in\" for most readers, so `BuiltInTrigger` vs `NativeTrigger` is a confusing pair. `CelTrigger` or `ExpressionTrigger` says what it is.' DRY / single source of truth (M7): '`required_symbols` is two sources of truth for built-in triggers ... asks the client to restate derivable information and creates a state where the two disagree.' Layering/decoupling (B2): the bot-walking workaround 'leaks the bot abstraction that `CreateAlert` exists to hide'. Symmetry (B2 title): 'No read path — Create/Update/Delete with no Get or List'. Reversibility recurs: 'Free now; a wire-type change (`string` → `enum`) later.'"
+    },
+    {
+      "text": "Reports at least one contract-honesty issue: a field or RPC the contract promises that the implementation does not deliver",
+      "passed": true,
+      "evidence": "B1: 'The evaluator does not accept a `TriggerResult` message ... the documented example fails to parse. The proto comment is the contract here'. B3: 'Three groups of fields are in the schema and will show up in every generated client, but do nothing ... 2 of 6 baseline variants and 2 of 6 trigger types that accept configuration, report success, and then never fire.' M5: '`AlertBotParams` stores `AlertDefinition`, not `Alert` ... No RPC returns `Alert`, and nothing in `src/` references it.'"
+    },
+    {
+      "text": "Every finding has severity, fix-clarity, and a file:line anchor in a .proto file",
+      "passed": false,
+      "evidence": "No finding carries a severity label or a fix-clarity label anywhere in the report; the only gradation is section bucketing ('## Blockers', '## Should fix before other teams start', '## Nits'). Anchors are also frequently non-proto or absent: B1 anchors on '`parse_trigger_result` in `/Users/yuhanzhao/GitHub/ninniku/src/alert/alert_engine.rs:263`', B3 on '`/Users/yuhanzhao/GitHub/ninniku/src/alert/alert_engine.rs:98-118`', B4's implementation anchor is '`/Users/yuhanzhao/GitHub/ninniku/src/alert/mod.rs:127`', and M1, M2, M4, M6, M8, M9 quote proto text with no line number at all."
+    },
+    {
+      "text": "Does NOT claim that the 'reserved' keyword is itself a breaking change",
+      "passed": true,
+      "evidence": "'**Mechanically correct.** Using `reserved` rather than deleting the lines is the right way to retire field numbers, and it prevents accidental reuse.' The breakage is attributed to the field removal: 'an external consumer of `AccountInfo` silently loses two fields'."
+    },
+    {
+      "text": "Nothing was written to the ninniku working tree",
+      "passed": true,
+      "evidence": "Verified read-only for both runs per grading instructions."
+    }
+  ]
+}

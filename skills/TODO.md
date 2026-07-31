@@ -29,16 +29,22 @@ cost (the adoption blocker), then hygiene.
       `with_skill-pre-decontamination/`. Full analysis:
       `deep-code-review-workspace/iteration-2/benchmark.md`; log:
       `deep-code-review/meta/iterations.md` §Iteration 2.
-- [ ] **2. Wire `check_contamination.py` into the eval flow as a mandatory pre-run gate.**
-      *(Ran manually as a gate before every iteration-2 run — CLEAN — and iterations.md now
-      declares it standing policy. Still unwired mechanically: nothing enforces it; a
-      run-evals entry script or pre-commit hook should call it and abort on exit 1.)*
-- [ ] **3. Test suite for `scope_detect.py`.** Already promoted to top of
-      `deep-code-review/meta/IMPROVEMENTS.md` and still unstarted. It is the deterministic
-      backbone every review gates on, and it has already shipped three silent bugs that two
-      fixtures missed. Table-driven, one synthetic git repo per case, matrix built from the
-      code's branches: every role, every signal, every aspect predicate, both shape
-      boundaries, untracked/oversized/binary/renamed files, detached HEAD, no-trunk.
+- [x] **2. Wire `check_contamination.py` into the eval flow as a mandatory pre-run gate.**
+      *(Done 2026-07-31.)* Two mechanisms: `build_benchmark.py` now runs the checker and
+      **refuses to assemble** a benchmark on failure (override requires an explicit
+      `--allow-contaminated`, which is recorded in the benchmark metadata; a clean run
+      records `contamination_gate: CLEAN`), and the new
+      `deep-code-review-workspace/RUNBOOK.md` documents the full eval procedure with the
+      gate as step 0 — including the iteration-2 lesson that the gate must run against
+      the exact tree executors will load, immediately before launch.
+- [x] **3. Test suite for `scope_detect.py`.** *(Done 2026-07-31.)*
+      `deep-code-review/scripts/test_scope_detect.py`: 48 cases, stdlib-only, ~2.5s.
+      Pure functions tested directly (roles incl. precedence collisions, dep-bump semver
+      logic, every signal regex, shape boundaries, every aspect predicate); synthetic-git
+      integration tests cover regressions for all three PR-#1 bugs, the `@{upstream}`
+      trap, exit codes 2/3/4, committed+worktree dual flags, and lockfile exclusion.
+      Also removed dead `OPENAPI_REQUIRED_RE` (OpenAPI breakage detection recorded as a
+      missing feature in IMPROVEMENTS.md — resolves the first bullet of #11 below).
 
 ## P1 — Close the known quality gaps
 
@@ -89,9 +95,9 @@ cost (the adoption blocker), then hygiene.
       `repo-index/SKILL.md`). The next tweak to the ratio rule will miss one of them.
       Keep the normative statement in one reference file; everywhere else links or quotes
       with a pointer.
-- [ ] **11. Small `scope_detect.py` fixes** (roll into #3's test matrix):
-      - `OPENAPI_REQUIRED_RE` is defined and never used — dead code or a missing feature;
-        decide which.
+- [ ] **11. Small `scope_detect.py` fixes** (partially rolled into #3's test matrix):
+      - ~~`OPENAPI_REQUIRED_RE` is defined and never used~~ — resolved with #3: removed as
+        dead code; real OpenAPI breakage detection recorded as a missing feature.
       - `dep_major_bump` notes don't name their source manifest (painful on multi-manifest
         waves) — prefix with the path. *(already in IMPROVEMENTS)*
       - `TEST_NAME_RE` classifies helpers like `test_utils.py` as tests, exempting them

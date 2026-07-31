@@ -12,10 +12,27 @@ import datetime
 import glob
 import json
 import os
+import subprocess
 import sys
 
 ITER = sys.argv[1] if len(sys.argv) > 1 else "iteration-1"
 SKILL = "deep-code-review"
+
+# Contamination gate (TODO P0 #2): a benchmark must never be assembled from a
+# contaminated skill tree. This re-checks at assembly time; the RUNBOOK requires
+# the same gate BEFORE launching any with_skill run — assembly-time is the
+# mechanical backstop, not a substitute. Override only with --allow-contaminated
+# (and then the benchmark says so in its metadata).
+_GATE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "..", "check_contamination.py")
+_allow = "--allow-contaminated" in sys.argv
+_gate_proc = subprocess.run([sys.executable, _GATE], capture_output=True, text=True)
+if _gate_proc.returncode != 0 and not _allow:
+    sys.exit("contamination gate FAILED — no benchmark assembled. Fix the skill "
+             "tree (or pass --allow-contaminated to record a tainted build):\n"
+             + _gate_proc.stdout + _gate_proc.stderr)
+GATE_RESULT = ("CLEAN" if _gate_proc.returncode == 0
+               else "CONTAMINATED (assembled with --allow-contaminated)")
 
 # Per-iteration caveat lives in <iteration>/caveat.txt so this script doesn't
 # hardcode one iteration's history into every later benchmark.
@@ -71,6 +88,7 @@ benchmark = {
                      .strftime("%Y-%m-%dT%H:%M:%SZ"),
         "evals_run": sorted({r["eval_id"] for r in runs}),
         "runs_per_configuration": 1,
+        "contamination_gate": GATE_RESULT,
         "caveat": CAVEAT,
     },
     "runs": runs,
@@ -102,5 +120,13 @@ for cfg in ("with_skill", "without_skill"):
 
 if CAVEAT:
     lines += ["", "> " + CAVEAT]
-open(os.path.join(ITER, "benchmark.md"), "w").write("\n".join(lines) + "\n")
+
+# A rebuild must not erase the hand-written analyst pass appended after assembly.
+md_path = os.path.join(ITER, "benchmark.md")
+if os.path.exists(md_path):
+    old = open(md_path).read()
+    marker = "## Analyst pass"
+    if marker in old:
+        lines += ["", "---", "", old[old.index(marker):].rstrip()]
+open(md_path, "w").write("\n".join(lines) + "\n")
 print("\n".join(lines))

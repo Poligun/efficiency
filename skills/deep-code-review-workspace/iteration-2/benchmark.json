@@ -4,7 +4,7 @@
     "skill_path": "/Users/yuhanzhao/GitHub/efficiency/skills/deep-code-review",
     "executor_model": "claude-opus-5[1m]",
     "analyzer_model": "claude-opus-5[1m]",
-    "timestamp": "2026-07-31T07:48:36Z",
+    "timestamp": "2026-07-31T07:58:15Z",
     "evals_run": [
       0,
       1,
@@ -12,6 +12,7 @@
       3
     ],
     "runs_per_configuration": 1,
+    "contamination_gate": "CLEAN",
     "caveat": "with_skill runs in this iteration are clean re-runs against the decontaminated skill (f586e62 and later): the contamination checker (check_contamination.py) passed before any run was launched. An earlier set of iteration-2 with_skill runs for evals 2-4 turned out to predate the decontamination commit and is archived under with_skill-pre-decontamination/ (see PRE-DECONTAMINATION-NOTE.md); it is excluded from this benchmark. Baselines (without_skill) are the iteration-1 baseline runs carried over unchanged (byte-identical artifacts, verified) \u2014 they never load the skill, so decontamination does not affect them; the trade-off is that they were executed in a different session than the with_skill runs. Executors: claude-opus-5, dispatched sequentially from a Claude Fable 5 orchestrator session to keep timing measurements uncontended."
   },
   "runs": [

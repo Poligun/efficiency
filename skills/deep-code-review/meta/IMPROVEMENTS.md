@@ -78,12 +78,17 @@ orthogonal to severity, with guards against confusing "unreachable" with "rare".
 
 ## Things noticed while building
 
-- [ ] **`scope_detect.py` has no tests — promoted to the top of the list.** Copilot found
-      three real bugs in it on PR #1, in code I had unit-checked against two fixtures. Both
-      fixtures happened to miss every affected path: untracked files, oversized files, and
-      single-file diffs. Build the test matrix from the *branches of the code* — every role,
-      every signal, every aspect-activation predicate, every shape boundary — not from
-      whichever repos are convenient. Table-driven, one synthetic git repo per case.
+- [x] ~~**`scope_detect.py` has no tests — promoted to the top of the list.**~~ — DONE
+      (2026-07-31). `scripts/test_scope_detect.py`: 48 table-driven cases built from the
+      code's branches — every role (incl. precedence collisions), every signal, every
+      aspect predicate, both shape boundaries, plus synthetic-git integration tests for
+      all three PR-#1 bugs (untracked/oversized files, single-file shape), the
+      `@{upstream}` trap, exit codes 2/3/4, and committed+worktree dual flags. Stdlib
+      only, ~2.5s. Run with `python3 scripts/test_scope_detect.py`.
+- [ ] **OpenAPI wire-breakage detection is a missing feature.** OpenAPI files classify as
+      `wire_contract` by name, but no breakage scan runs on their hunks (a leftover naive
+      regex for removed required-list entries was deleted — it matched any YAML list item).
+      Real detection needs YAML-aware diffing of `required:` blocks and path/verb removals.
 - [ ] The `api_surface_touched` regex is indentation-sensitive (≤4 columns), which will
       miss exported items inside heavily-nested modules and match some things it shouldn't
       in languages with different indentation norms. Works for now; revisit if it produces

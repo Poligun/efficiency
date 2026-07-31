@@ -194,7 +194,10 @@ ROUTE_RE = re.compile(
 PROTO_FIELD_RE = re.compile(r"^\s*(repeated\s+|optional\s+|required\s+)?[\w.<>, ]+\s+(\w+)\s*=\s*(\d+)\s*;")
 RESERVED_RE = re.compile(r"^\s*reserved\s+")
 RPC_RE = re.compile(r"^\s*rpc\s+(\w+)")
-OPENAPI_REQUIRED_RE = re.compile(r"^\s*-\s+\w+\s*$")
+# NOTE: OpenAPI files are classified as wire_contract by name, but no breakage
+# detection runs on their hunks — a naive "removed required-list entry" regex
+# matches any YAML list item and would flood wire_breaking with false positives.
+# Real OpenAPI diffing is tracked in meta/IMPROVEMENTS.md.
 
 BUILD_CONTRACT_FILES = re.compile(
     r"(^|/)(build\.rs|build\.gradle(\.kts)?|CMakeLists\.txt|Makefile|"

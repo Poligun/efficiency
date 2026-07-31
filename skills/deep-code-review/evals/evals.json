@@ -1,0 +1,70 @@
+{
+  "skill_name": "deep-code-review",
+  "notes": "Ground truth for evals 1 and 2 is in meta/ground-truth/ninniku-cel-alert.md, verified first-hand. Eval 3 uses a synthetic fixture so gating can be tested without a real dependency-only branch. Runs against ninniku must be read-only: propose memory, never write, never touch the working tree.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "full-branch-review",
+      "prompt": "I'm about to merge this branch. Can you give it a proper review before I do? I care more about design and logic problems than style nits.",
+      "cwd": "/Users/yuhanzhao/GitHub/ninniku",
+      "branch": "cel-alert",
+      "expected_output": "A markdown report covering all four aspects, with the injection, lifecycle, dedup, and fallback findings present; every finding carrying severity, fix-clarity, an existing file:line anchor and quoted evidence; and neither of the two convention traps filed.",
+      "files": [],
+      "assertions": [
+        {"id": "G1", "text": "Reports that caller-supplied strings are interpolated into CEL expression source without validation, anchored in src/alert/mod.rs"},
+        {"id": "G2", "text": "Reports that DeleteAlert can never succeed, citing both that create starts the bot and that delete_bot rejects Running bots"},
+        {"id": "G3", "text": "Reports the total absence of deduplication, cooldown, or edge-triggering, so an alert re-fires every interval"},
+        {"id": "G4", "text": "Reports at least one silent fallback that inverts trigger semantics (decimal() parse failure to 0.0, unwrap_or(0.0) on prices, or reduce_bars returning NaN)"},
+        {"id": "G5", "text": "Reports declared-but-unwired proto surface (market_hours_filter, required_symbols, or initial_state having no consumer)"},
+        {"id": "G6", "text": "Reports the breaking reserved change in account_info.proto AND notes it is unrelated to the alerting feature"},
+        {"id": "G7", "text": "Reports the unchecked i32 multiplication or the silent time_unit fallthrough in lookback_duration"},
+        {"id": "T1", "text": "Does NOT file a finding that module declaration lists should be alphabetized (src/alpaca/mod.rs contradicts it)"},
+        {"id": "T2", "text": "Does NOT file 'missing tests' as a convention violation (repo has only 2 test modules total)"},
+        {"id": "T3", "text": "Does NOT file findings that clippy or rustfmt would catch"},
+        {"id": "T4", "text": "Does NOT claim that the 'reserved' keyword is itself a breaking change"},
+        {"id": "S1", "text": "Every finding has a severity, a fix-clarity label, and a file:line anchor"},
+        {"id": "S2", "text": "Every file:line anchor cited actually exists in the repo at that path"},
+        {"id": "S3", "text": "Every finding quotes at least one line of real code as evidence"},
+        {"id": "S4", "text": "Report includes a Coverage statement naming which aspects ran"},
+        {"id": "S5", "text": "Total findings is 15 or fewer"},
+        {"id": "S6", "text": "Findings are ordered by severity descending, with any CRITICAL/HIGH needing a decision surfaced first"},
+        {"id": "S7", "text": "Nothing was written to the ninniku working tree (git status unchanged)"}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "narrowed-api-review",
+      "prompt": "Just look at the proto changes on this branch — I want to know if the API design is sound before other teams start building against it. Skip the implementation.",
+      "cwd": "/Users/yuhanzhao/GitHub/ninniku",
+      "branch": "cel-alert",
+      "expected_output": "An API-focused review that honors the narrowing, runs only the wire-contract aspect, says in Coverage which aspects were skipped at the user's request, and goes deeper on contract design than eval 1 does.",
+      "files": [],
+      "assertions": [
+        {"id": "N1", "text": "Honors the narrowing — does not report implementation-only logic bugs like the i32 overflow or the NaN fallback"},
+        {"id": "N2", "text": "Coverage statement says which aspects were skipped and that it was at the user's request"},
+        {"id": "N3", "text": "Reports the breaking reserved change in account_info.proto"},
+        {"id": "N4", "text": "Evaluates the contract against at least two named design traits (decoupling, naming, DRY, layering, symmetry, honesty, reversibility)"},
+        {"id": "N5", "text": "Reports at least one contract-honesty issue: a field or RPC the contract promises that the implementation does not deliver"},
+        {"id": "N6", "text": "Every finding has severity, fix-clarity, and a file:line anchor in a .proto file"},
+        {"id": "T4", "text": "Does NOT claim that the 'reserved' keyword is itself a breaking change"},
+        {"id": "S7", "text": "Nothing was written to the ninniku working tree"}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "gating-dependency-bump",
+      "prompt": "Review this branch for me before I merge it.",
+      "cwd": "<workspace>/fixtures/dep-bump-repo",
+      "branch": "chore/bump-deps",
+      "expected_output": "A short report that says there is nothing substantive to review, notes the major dependency bump, and stops. Should be markedly cheaper than eval 1 in both tokens and wall-clock.",
+      "files": [],
+      "assertions": [
+        {"id": "GA1", "text": "Correctly identifies that no review aspects are active and says so explicitly"},
+        {"id": "GA2", "text": "Notes the reqwest 0.12.4 -> 0.13.0 major bump"},
+        {"id": "GA3", "text": "Does NOT invent findings about the unchanged application code (src/main.rs, src/config.rs)"},
+        {"id": "GA4", "text": "Does NOT dispatch review subagents for inactive aspects"},
+        {"id": "GA5", "text": "Uses substantially fewer tokens than eval 1"}
+      ]
+    }
+  ]
+}

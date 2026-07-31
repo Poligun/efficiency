@@ -42,7 +42,7 @@ teammate's committed knowledge outranks local notes, and local notes stay local.
     └── findings/<slug>.md     open / fixed / wontfix ledger + graveyard
 ```
 
-Layers link downward so a reader picks their own depth. "Does this diff touch alerting?"
+Layers link downward so a reader picks their own depth. "Does this diff touch <domain>?"
 reads L0 only. Hunting a lifecycle bug reads L0 → L2. Needing one function's history reads
 L0 → L2 → L3.
 
@@ -108,9 +108,9 @@ rg -F --line-number "<anchor quote>" <anchor path>
 
 **BROKEN is handled asymmetrically by provenance.** A `code` or `doc` claim is silently
 rewritten or dropped — it was a cheap observation. A `user` claim is **never auto-deleted**:
-flip it to `needs-reconfirmation` and surface it as a question. *"Memory from 2026-07-29,
-in your words, says firing must be edge-triggered. The code that anchored that claim is
-gone. Is the rule still in force?"* Losing hard-won intent costs more than one question.
+flip it to `needs-reconfirmation` and surface it as a question. *"Memory from <date>,
+in your words, says <the rule>. The code that anchored that claim is gone. Is the rule
+still in force?"* Losing hard-won intent costs more than one question.
 
 **Known limits, stated honestly.** A semantic inversion on an unchanged anchor line —
 `>=` becomes `>` without touching the quoted token — is undetectable by this protocol;
@@ -137,11 +137,10 @@ code) may be written freely. An **intent** claim (a requirement, a promise, a ru
 Inference isn't banned, it's redirected:
 
 ````markdown
-### Q-alerting-002 — Should one trigger's error abort the whole evaluation cycle?
-- proposed answer (inferred, unconfirmed): no — per-trigger errors should be isolated
-  and logged, with remaining triggers still evaluated.
-- would change: severity of FND-alerting-005 (HIGH if isolation is required, MEDIUM as a
-  contract mismatch only)
+### Q-<domain>-002 — <the question, phrased so a human can answer it in one line>
+- proposed answer (inferred, unconfirmed): <your best guess, explicitly labelled>
+- would change: severity of FND-<domain>-005 (HIGH if the stricter reading holds,
+  MEDIUM as a contract mismatch only)
 - asked: never
 ````
 
@@ -159,11 +158,11 @@ re-litigating it, but blanket suppression hides a genuinely new instance of the 
 The resolution: **record the reason as a re-checkable predicate, not the symptom.**
 
 ````markdown
-### REF-alerting-001 — "Growing the state vector without shrinking it misaligns triggers"
+### REF-<domain>-001 — "<the claim being refuted, in the words it was originally raised>"
 - reason_class: unreachable    # by-design | guarded-elsewhere | unreachable | out-of-scope | wrong-model
 - scope: this-site-only        # this-site-only (default) | class-wide (requires a human)
 - re_raised: 1
-- refuted: 2026-07-29 @ b00b1d4
+- refuted: <YYYY-MM-DD> @ <sha>
 - reasoning: the collection is immutable after construction today — the update path is
   unimplemented, so nothing can reorder or remove elements on a live instance.
 - guard_anchor: <path>:<line> `<quote of the code that makes it safe>`
@@ -226,9 +225,9 @@ findings ledger only before finalizing a finding in that domain.
 
 | path globs | domain | claims | last verified |
 |---|---|---|---|
-| `src/alert/**`, `proto/**/alert/**` | [alerting](domains/alerting.md) | 9 | 2026-07-29 @ b00b1d4 |
+| `<glob>`, `<glob>` | `domains/<slug>.md` | 9 | `<YYYY-MM-DD> @ <sha>` |
 
-Findings: [alerting](review/findings/alerting.md) — 9 open, 0 fixed, 2 refuted
+Findings: `review/findings/<slug>.md` — 9 open, 0 fixed, 2 refuted
 
 ## Repo-wide notes
 - [Things true across the whole repo: what the type system already enforces so review
@@ -241,7 +240,7 @@ Findings: [alerting](review/findings/alerting.md) — 9 open, 0 fixed, 2 refuted
 ---
 schema: knowledge/v1
 domain: <slug>
-paths: ["src/alert/**", "proto/**/alert/**"]
+paths: ["<glob>", "<glob>"]
 updated: <YYYY-MM-DD>
 head: <sha>
 ---

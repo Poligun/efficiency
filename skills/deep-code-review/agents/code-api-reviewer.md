@@ -16,10 +16,11 @@ is unanswerable and "does a caller have to know something it shouldn't" is not.
 knowing? *Failure: a type from an inner layer appears in an outer layer's signature, so
 every caller now depends on the inner layer's release schedule.*
 
-**Naming** — does one concept keep one name everywhere it appears? *Failure: the field is
-`alert_definition` on the RPC, `definition` in the params struct, and `alert` in the
-handler — three names, one thing, and every reader pays the tax of confirming they're the
-same.* Also: does the name say what it does, or what it's implemented with?
+**Naming** — does one concept keep one name everywhere it appears? *Failure: the same
+field is spelled one way on the wire, abbreviated in the struct that carries it, and
+shortened again in the handler — three names, one thing, and every reader pays the tax of
+confirming they're the same.* Also: does the name say what it does, or what it's
+implemented with?
 
 **DRY-ness** — is one concept modeled more than once? *Failure: a resource has a full
 message, a params message holding its body, and a response holding just its id — three

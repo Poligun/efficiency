@@ -102,8 +102,21 @@ its benchmark and badly everywhere else.
 > behavior that artifact represented.** Examples get written while the author's head is
 > full of the case they just debugged, and that case is usually the eval target. All
 > examples are now synthetic, and each carries an explicit "write your own from the code in
-> front of you" instruction. Iteration 2 should audit for this before running evals, not
-> after — `grep` the skill tree for identifiers from the eval repo.
+> front of you" instruction.
+>
+> **Iteration 2 update — a hand-run grep is not enough.** Cleaning up after iteration 1
+> used a hand-written pattern list and reported CLEAN. A later pass with a wider list found
+> seven more leaks the first had missed: a domain slug, path globs, two real commit shas,
+> a naming example, and — worst — an `intent_questions` sample that encoded a must-find
+> assertion verbatim. The failure mode is obvious in hindsight: the audit only finds terms
+> you thought to search for, and the terms you forget are exactly the ones you didn't
+> notice writing.
+>
+> So it's a script now: `skills/check_contamination.py` derives its terms from the fixture
+> sources and ground-truth files rather than from memory, so adding an eval target extends
+> the check for free. It paid for itself within a minute of existing — it caught a leak
+> introduced *while fixing leaks*, when a new severity-rubric example was written using a
+> path from the fixture built ten minutes earlier. Run it before every eval round.
 
 **Letting subagents write memory directly.**
 A subagent can't obtain user approval, and several siblings writing the same file is a

@@ -4,8 +4,14 @@ Load this in Step 3 when building the convention ledger, if the repo's language 
 isn't one you can probe from memory.
 
 The goal is **counts, not impressions**. Every probe should end with a number of
-supporting files and a number of counterexamples, because the establishment test (≥3
-support, ≤1 counter) is what separates a convention from a coincidence.
+supporting files and a number of counterexamples, because the establishment test is what
+separates a convention from a coincidence.
+
+> **Quote your globs.** `grep --include=*.rs` fails outright under zsh — the default shell
+> on macOS — with `no matches found`, because zsh expands the glob before grep sees it and
+> errors when nothing matches in the current directory. Write `--include="*.rs"`. The same
+> applies to any `*` you intend a command rather than the shell to interpret. This bites
+> often enough to be worth the line.
 
 ## Start with written rules
 

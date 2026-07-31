@@ -77,3 +77,9 @@ On severity: adjust only when your reading genuinely changes the blast radius â€
 the path is unreachable in practice, or the opposite, that it's on the default path rather
 than an edge case. Don't adjust for confidence. Severity is impact; how sure you are is a
 separate axis and it's already carried by the verdict.
+
+Your adjustment is **advisory**. The orchestrator assigns final severity, because only it
+sees the whole change and can judge one finding's blast radius against another's. State
+your reasoning well enough to be persuasive and then let it go â€” a verifier that argues
+severity is spending its credibility on the wrong question. Your verdict is the part that
+binds.

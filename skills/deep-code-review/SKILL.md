@@ -54,8 +54,10 @@ you have no positive reason to disagree, trust it — that's the whole point of 
 
 Two cases where you should stop early rather than review:
 
-- **All aspects inactive** (a dependency bump, a docs-only change). Report the
-  `dep_major_bump` notes if any, and stop. Do not manufacture findings to justify the run.
+- **All aspects inactive** (a dependency bump, a docs-only change). Skim the diff first —
+  enough to say *which* dependency moved and from what to what, since a note naming neither
+  is useless — then report and stop. Skip Steps 3–8 entirely and use the short report shape
+  in Step 7. Do not manufacture findings to justify the run.
 - **`shape: focused`** (small diff). Do the API and convention work inline yourself
   instead of dispatching — delegation costs more than it saves at that size. Still
   dispatch business logic, because keeping it out of your context is the point.
@@ -151,14 +153,25 @@ Give every agent the same five blocks:
 Pass the false-positive list to *finders*, not just verifiers. A finding never raised
 costs nothing to verify.
 
+**Don't wait idly while round 1 runs.** There's no way to block on a subagent, and polling
+for one burns tool calls to no purpose. Agents take minutes; use that time for the
+first-hand reading Step 6 depends on — open the files behind the riskiest hunks, trace the
+call paths the change touches, and settle any convention-ledger rows you left uncertain.
+Arbitration is only as good as what you know independently, and this is the window where
+that knowledge is free. If you finish before the agents do, read the diff's largest
+untouched neighbor: the code that *calls* what changed.
+
 **Dispatching A3:** `business-logic-review` lives at `../business-logic-review/SKILL.md`
 relative to this skill. Tell the subagent to read it and run in `mode=subagent`, which
 makes it return structured JSON and propose memory rather than writing it. If that file
 doesn't exist, say so in the report's Coverage line and run the angle checklist from
 `../business-logic-review/references/angles.md` inline — never silently drop the aspect.
 
-**Knowledge base location.** If `logic` is active, resolve where accumulated knowledge
-lives *before* dispatching, so no subagent stalls on a question it can't answer:
+**Knowledge base location.** Only if you're actually dispatching A3 — an active `logic`
+aspect the user has narrowed away doesn't count, and interrupting someone who asked for a
+proto review with a question about directory layout is exactly the wrong trade. When you
+are dispatching it, resolve this *before* dispatch, so no subagent stalls on a question it
+can't answer:
 
 1. `<repo>/.claude/knowledge/` exists → use it.
 2. `~/.claude/projects/<repo-slug>/knowledge/` exists → use it.
@@ -260,9 +273,10 @@ needs a meeting.
 [2-3 sentences: what this branch does, and your overall read. Lead with the thing
 that would most change the author's plan.]
 
-**Coverage.** [Which aspects ran and which didn't, with the reason. Any caps hit.
-Any aspect that ran degraded. Be specific — an unstated gap reads as "we checked
-everything".]
+**Coverage.** [Which aspects ran and which didn't. Distinguish the two reasons for
+skipping — "you asked me to skip X" and "the script found no X to review" mean
+different things to a reader deciding whether to run again. Note any caps hit and any
+findings that shipped unverified. An unstated gap reads as "we checked everything".]
 
 ## Needs a decision before merge
 [Only CRITICAL/HIGH findings whose fix requires a human call. Omit the section
@@ -288,6 +302,23 @@ unranked. These are opinions, and labelled as such.]
 ## Could not resolve
 [Anything arbitration couldn't settle, with the evidence that would settle it.
 Omit if empty.]
+```
+
+**If you stopped early at Step 1**, the template above is the wrong shape — it's built for
+a run that had findings. Use this instead, and don't pad it:
+
+```markdown
+# Review: [branch] → [base]
+
+[1-2 sentences: what this branch is, and why there's nothing to review.]
+
+**Coverage.** [Which aspects were inactive and the reason each was inactive, from the
+scope JSON. State the counts — "0 changed lines in source files" is the evidence.]
+
+## Worth knowing before you merge
+[Only what the scope script surfaced — major dependency bumps named with their
+from/to versions, or a build-contract change. One line each. If there is genuinely
+nothing, say so in a sentence and stop; an empty section is a fine outcome.]
 ```
 
 Write findings that name a consequence, not a category:

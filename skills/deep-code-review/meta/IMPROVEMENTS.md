@@ -57,23 +57,12 @@ has no home for it.
       equivalent) when a lockfile changes. The baseline found the broken lock by building;
       the skill never tried.
 
-## The severity rubric has no row for latent defects
+## ~~The severity rubric has no row for latent defects~~ — DONE (iteration 2)
 
-Raised by the eval-4 agent, and it's right. On the eval branch roughly a third of the
-feature surface is defective *in code that ships* but masked by an unimplemented stub — the
-generated expressions are wrong, but nothing reaches them yet. These defects ship no wrong
-behavior today and are certain to the moment the stub lands.
-
-The rubric's severity ladder is defined by impact-now, so different reviewers would rank
-these anywhere from LOW ("nothing is broken") to HIGH ("this is baked into the generated
-output"). The agent handled it by reporting real severity with a "latent until X lands"
-marker, which is a reasonable invention, but the rubric should say so rather than leaving
-it to be reinvented.
-
-- [ ] **Add a `latent` marker orthogonal to severity**, the way `fix_clarity` is
-      orthogonal. Severity states impact when reached; `latent: <what unblocks it>` states
-      that it isn't reached yet. That keeps severity meaning one thing and stops the
-      "is it CRITICAL or LOW" argument from being a coin flip.
+Raised independently by the eval-4 agent in **both** iterations, which invented the same
+"latent until X lands" marker each time. Two independent reinventions is a strong signal
+the gap was real, so it's now in `references/severity-rubric.md` as a first-class marker
+orthogonal to severity, with guards against confusing "unreachable" with "rare".
 
 ## From iteration-1 eval run-notes
 

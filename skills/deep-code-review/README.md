@@ -104,14 +104,21 @@ violations. That seam is what makes the cheap tier viable at all.
 
 ## Conventions are measured, not assumed
 
-> ≥3 supporting occurrences and ≤1 counterexample → **established**, findings allowed.
-> Ratio under 3:1 → **mixed**, becomes a note about repo inconsistency.
-> Fewer than 3 → **absent**, no finding, ever.
+Applied in order, first match wins, so every count combination lands somewhere:
 
-This exists because the obvious-looking convention is often wrong. In the eval repo, two
+> 1. Fewer than 3 supporting occurrences → **absent**. No finding, ever.
+> 2. 0 or 1 counterexamples → **established**. Findings allowed.
+> 3. Support-to-counter ratio ≥ 3:1 → **established**, but name the holdouts when citing it.
+> 4. Anything else → **mixed**. A note about repo inconsistency, never a finding.
+
+This exists because the obvious-looking convention is often wrong. In one eval repo, two
 modules alphabetize their declarations and a third doesn't — so "this repo alphabetizes"
 is a finding the codebase itself contradicts, and filing it costs credibility on the other
 nine findings. A `mixed` verdict means *both sides lose*.
+
+Rule 3 was added after a real run: a 34-vs-4 error-handling pattern matched none of the
+original three rules and got defensively demoted, which would have made a
+widely-followed convention unenforceable because four old files predate it.
 
 ## Two verdict vocabularies
 
@@ -167,7 +174,7 @@ flowchart LR
 └── review/findings/    ..... open ledger + refutation graveyard
 ```
 
-Layers link downward so a reader picks its own depth: *"does this diff touch alerting?"*
+Layers link downward so a reader picks its own depth: *"does this diff touch the payments domain?"*
 reads thirty lines; hunting a lifecycle bug reads L0 → L2.
 
 **The rule that makes it safe:** memory stores *pointers and questions, never evidence.*

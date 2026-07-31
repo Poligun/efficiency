@@ -68,6 +68,30 @@ A finding that rests on **inferred** intent — the reviewer's guess about what 
 supposed to do, with nothing to source it to — is not a finding at all. It's an
 open question with `fix_clarity: NEEDS-DECISION`. State the assumption and ask.
 
+## Latent defects
+
+Some defects are fully written into the code and not yet reachable — the surrounding
+feature is stubbed, the caller isn't wired up, the flag defaults off. They ship no wrong
+behavior today and are certain the moment the stub lands.
+
+Severity means impact-when-reached, so these would otherwise be argued anywhere from LOW
+("nothing is broken") to HIGH ("it's baked into what we generate"). Don't argue it. Assign
+the severity the defect will have when reached, and add a marker naming what unblocks it:
+
+```
+### F4 — Batch loop reports only the last item (HIGH · scoped · confirmed)
+`<path>:<line>` · **latent** until the batch endpoint is routed
+```
+
+The marker is orthogonal to severity, the way fix-clarity is. It tells the reader "this is
+real, and it isn't hurting you this week", which is exactly the information they need to
+schedule it — and it stops a genuine defect from being discounted to LOW just because the
+blast radius is currently zero.
+
+Two guards. Verify the thing is *actually* unreachable rather than assuming it from a
+`TODO` nearby — quote the code that blocks it. And don't use `latent` on a defect that is
+merely rare; rare and unreachable are different, and conflating them hides live bugs.
+
 ## Ordering
 
 1. Severity, descending.

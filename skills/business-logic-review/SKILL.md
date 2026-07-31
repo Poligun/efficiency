@@ -48,6 +48,13 @@ git diff --stat "$MB"          # committed AND uncommitted — reviews often run
 git log --oneline "$MB"..HEAD
 ```
 
+**Measure size on reviewable code only.** The `--stat` total counts lockfiles, generated
+code, and vendored trees, and a dependency bump alone can be a thousand lines. Sizing off
+the raw number sends you fanning out subagents over a diff that is mostly `Cargo.lock`.
+Subtract those before applying the scaling rule in Step 4 — or, if
+`../deep-code-review/scripts/scope_detect.py` is available, run it and read `code_lines`,
+which already excludes them.
+
 **Mode matters for your output.** If your prompt says `mode=subagent`, you were dispatched
 by `deep-code-review`: return one fenced JSON block and at most one line of prose, and
 **never write memory** — return proposals instead. A subagent can't ask the user for
@@ -85,8 +92,8 @@ Each claim lands in one of four states, and they gate what you're allowed to do 
 | UNVERIFIABLE | an absence claim | never trusted; re-run its `verify_absence` command every time |
 
 Guard against the obvious trap here: memory primes your questions, it doesn't answer them.
-An agent that reads "alerts must deduplicate" and goes looking for confirmation will find
-it. Read the code first and let memory tell you *where to look hardest*.
+An agent that reads a stored invariant and then goes looking for confirmation will find it.
+Read the code first and let memory tell you *where to look hardest*.
 
 Details in `references/memory-protocol.md` — read it now if you're touching memory at all.
 
@@ -172,6 +179,13 @@ Then check the findings ledger (`review/findings/<domain>.md`) for anything alre
 | documented intent (a comment, a proto doc) | MEDIUM, and phrase it as a contract mismatch |
 | your inference about intent | **not a finding** — it's an open question |
 
+When a finding rests on more than one source, **the strongest source governs** — the cap
+is a floor on evidence quality, not a ceiling on severity. A bug you can demonstrate from
+the code *and* which also contradicts a doc comment is capped by neither; the doc is
+corroboration, and mentioning it doesn't downgrade what you proved. The MEDIUM cap applies
+only when documented intent is the *sole* thing making the behavior wrong — that is, when
+the code does exactly what it says and the complaint is that a comment promised otherwise.
+
 That last row is the anti-hallucination valve. Comments lie, and a comment claiming an
 operation is unconditional while the code rejects half its inputs is a *contradiction*
 worth reporting — but it's evidence about the contract, not about what the team wanted.
@@ -225,7 +239,12 @@ free to be wrong, costs one line, and hands the next review a ready-made thing t
 When the human answers, the question becomes an invariant with their words attached — and
 that loop is why this gets better across reviews rather than just longer.
 
-In subagent mode, emit proposals and write nothing. Otherwise show the diff and wait:
+In subagent mode, emit proposals and write nothing. Otherwise show the diff and wait — but
+**if nobody is there to answer** (a scheduled run, a CI job, any non-interactive context),
+treat that as a decline rather than a blocker: print the proposed diff in the report, write
+nothing, and say plainly that it's unwritten and why. Memory is an optimization for future
+reviews; blocking a finished review on an unanswerable question trades something valuable
+for something optional.
 
 ```bash
 git diff --no-index /dev/null .claude/knowledge/domains/<slug>.md   # for new files

@@ -20,7 +20,7 @@ Three rules, each protecting something specific:
 ```json
 {
   "skill": "business-logic-review",
-  "base": "e85ca8d9", "head": "b00b1d4", "files_reviewed": 18,
+  "base": "<sha>", "head": "<sha>", "files_reviewed": 0,
   "angles_run": ["A1","A2","A3","A4","A5","A6","A7","A8","A9"],
   "angles_skipped": {"A10": "no new concurrency primitives in the diff"},
   "findings": [
@@ -45,12 +45,12 @@ Three rules, each protecting something specific:
   ],
   "intent_questions": [
     {"id": "Q-1",
-     "question": "Should notification happen on transition into fired, or on every evaluation while fired?",
+     "question": "<what you need a human to decide, phrased so one line answers it>",
      "blocks": ["BLR-3"],
-     "default_assumption": "edge-triggered"}
+     "default_assumption": "<what you assumed in the meantime>"}
   ],
   "memory_proposals": [
-    {"file": "domains/alerting.md", "op": "add", "entry_id": "MAP-alerting-002",
+    {"file": "domains/<slug>.md", "op": "add", "entry_id": "MAP-<slug>-002",
      "body": "…the full markdown entry…"}
   ],
   "notes": "Knowledge base absent; proposals would seed it."
@@ -78,8 +78,10 @@ act on each finding.
 
 [2-3 sentence verdict. Lead with whatever would most change their plan.]
 
-**Angles run.** [Which fired, which were gated out and why. If you skipped something a
-reader might expect, say so — an unstated gap reads as full coverage.]
+**Coverage.** [Which angles fired, which were gated out and why, whether they ran inline
+or as subagents, and anything you cut to stay under the cap. If you skipped something a
+reader might expect, say so — an unstated gap reads as full coverage. This is the line the
+severity rubric means when it says to disclose what was cut.]
 
 ### [SEVERITY] — [claim, ≤70 chars]
 `path/to/file.rs:104` · fix: [mechanical | scoped | needs a decision]

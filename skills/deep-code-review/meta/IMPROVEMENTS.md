@@ -89,9 +89,12 @@ it to be reinvented.
 
 ## Things noticed while building
 
-- [ ] `scope_detect.py` has no tests. It's the one component with a right answer, so it's
-      the one component that should have them. A fixture repo per classification rule would
-      pay for itself the first time a regex gets edited.
+- [ ] **`scope_detect.py` has no tests — promoted to the top of the list.** Copilot found
+      three real bugs in it on PR #1, in code I had unit-checked against two fixtures. Both
+      fixtures happened to miss every affected path: untracked files, oversized files, and
+      single-file diffs. Build the test matrix from the *branches of the code* — every role,
+      every signal, every aspect-activation predicate, every shape boundary — not from
+      whichever repos are convenient. Table-driven, one synthetic git repo per case.
 - [ ] The `api_surface_touched` regex is indentation-sensitive (≤4 columns), which will
       miss exported items inside heavily-nested modules and match some things it shouldn't
       in languages with different indentation norms. Works for now; revisit if it produces

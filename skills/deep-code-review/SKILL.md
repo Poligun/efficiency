@@ -323,10 +323,20 @@ gh auth status >/dev/null 2>&1 || echo "GitHub CLI isn't authenticated — run '
 gh pr view --json number,headRefOid -q '.number, .headRefOid'
 ```
 
-Post inline comments one per finding via `mcp__github_inline_comment__create_inline_comment`,
-falling back to `gh api repos/{owner}/{repo}/pulls/{pr}/comments`. Include a suggestion
-block only when it fully fixes the issue — a partial suggestion that someone clicks
-"commit" on is worse than none. Wait for explicit confirmation before the first call.
+Post one comment per finding with `gh`, which works anywhere the CLI is authenticated:
+
+```bash
+gh api repos/{owner}/{repo}/pulls/{pr}/comments \
+  -f body='...' -f commit_id="$SHA" -f path='src/foo.rs' -F line=104 -f side=RIGHT
+```
+
+If your environment exposes a dedicated inline-comment tool (some do, under names like
+`create_inline_comment`), prefer it — it handles positioning better. Check what's actually
+available rather than assuming either one; the `gh` path is the fallback that always works.
+
+Include a suggestion block only when it fully fixes the issue — a partial suggestion
+someone clicks "commit" on is worse than none. Wait for explicit confirmation before the
+first call.
 
 ## Edge cases
 

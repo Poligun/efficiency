@@ -381,7 +381,10 @@ def compute_aspects(files: list[dict]) -> dict:
 
     aspects = {}
 
-    wire_active = bool(wire_files or routes or clis)
+    # build/codegen contracts count: a four-line change to build.rs can alter every
+    # generated type in a package. Omitting it here while still listing it in
+    # `files` and `why` left the aspect inactive on a pure-codegen change.
+    wire_active = bool(wire_files or routes or clis or build)
     wire_why = []
     if wire_files:
         wire_why.append(f"{len(wire_files)} wire-contract file(s) changed")
@@ -435,9 +438,19 @@ def compute_aspects(files: list[dict]) -> dict:
 
 
 def compute_shape(code_files: int, code_lines: int) -> str:
+    """Pick the cost shape from how much code actually changed.
+
+    `focused` keys on line count alone. The shape exists to answer "does the
+    whole diff fit in the orchestrator's context, such that delegating costs
+    more than it saves" — and that is a question about volume, not spread.
+    Requiring few files as well misclassified a 500-line single-file rewrite as
+    small; requiring both (`and`) would misclassify a 40-line change spread over
+    eight files as large. File count only matters for `deep`, where sharding by
+    directory needs directories to shard by.
+    """
     if code_lines > 2000 or code_files > 40:
         return "deep"
-    if code_lines < 150 or code_files < 6:
+    if code_lines < 150:
         return "focused"
     return "standard"
 
@@ -516,18 +529,30 @@ def main() -> int:
         header = "" if (is_binary or too_big) else file_header(repo, path)
         role = classify_role(path, is_binary, header)
 
-        if too_big:
-            notes.append(f"{path}: {size} bytes exceeds --max-file-bytes; counted, not scanned")
-
         lines = [] if too_big else hunks.get(path, [])
-        if is_untracked and not too_big and role != "binary":
+        if is_untracked and role != "binary":
+            # Untracked files aren't in --numstat, so their size has to come from
+            # the file itself. Oversized ones still get counted — just line-counted
+            # rather than read into memory and regex-scanned — otherwise a large new
+            # file is invisible to both the shape selector and aspect gating while
+            # the note claims it was counted.
             try:
-                with open(full, "r", encoding="utf-8", errors="replace") as fh:
-                    body = fh.readlines()
-                lines = ["+" + line for line in body]
-                added = len(body)
+                if too_big:
+                    with open(full, "rb") as fh:
+                        added = sum(1 for _ in fh)
+                else:
+                    with open(full, "r", encoding="utf-8", errors="replace") as fh:
+                        body = fh.readlines()
+                    lines = ["+" + line for line in body]
+                    added = len(body)
             except OSError:
                 pass
+
+        if too_big:
+            notes.append(
+                f"{path}: {size} bytes exceeds --max-file-bytes; "
+                f"{added} lines counted, content not scanned for signals"
+            )
 
         signals, evidence, file_notes = scan_signals(path, role, lines)
         notes.extend(file_notes)

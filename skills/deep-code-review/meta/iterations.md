@@ -109,6 +109,38 @@ tests the defect, not the severity.
 - **A capable baseline is the point.** These baselines found the bugs; had they been weak,
   the 98%-vs-62% headline would have looked like a win it isn't.
 
+**Copilot review on PR #1 — 4 comments, 3 valid code bugs, all fixed.**
+
+Notable because all three were in `scope_detect.py`, the component I'd unit-checked against
+two fixtures. Both fixtures happened to avoid every one of these paths, which is a lesson
+about fixture coverage rather than about the script.
+
+1. **`wire_api` ignored `build_contract_touched`** while still listing the file in `files`
+   and naming it in `why`. A pure `build.rs` change reported `active: false` alongside
+   "build/codegen contract touched: build.rs". Reproduced, fixed. This one mattered: a
+   four-line `build.rs` edit can change every generated type in a package, and the aspect
+   that should catch it was switched off.
+2. **Oversized untracked files were neither scanned nor counted**, while the note claimed
+   "counted, not scanned". Untracked files aren't in `--numstat`, and the read that supplies
+   their line count was skipped for oversized ones. A 30,000-line new file reported
+   `added: 0` and left `logic` inactive. Now line-counted without being regex-scanned, and
+   the note says which happened.
+3. **`compute_shape` used `or`**, so a 500-line single-file rewrite classified as
+   `focused`. Copilot suggested `and`; that fixes this case and breaks the opposite one — a
+   40-line change across eight files would become `standard`. Fixed by keying `focused` on
+   line count alone, since the shape answers "does this fit in one context", which is about
+   volume, not spread. File count still gates `deep`, where sharding needs directories.
+4. **Hardcoded MCP tool name** in the PR-posting step. Partly fair — a `gh api` fallback was
+   already there, so it wasn't non-actionable — but leading with an environment-specific
+   tool name is brittle. Reordered to lead with `gh` and treat the dedicated tool as an
+   optional upgrade.
+
+**Lesson.** Two fixtures that both pass tell you less than they appear to. The gaps were in
+untracked-file handling, oversized files, and single-file diffs — none of which either
+fixture exercised. `IMPROVEMENTS.md` already carried "scope_detect.py has no tests"; this
+promotes it, and the test matrix should be built from the *branches* of the code rather than
+from convenient repos.
+
 **Changes for iteration 2.**
 
 - Re-run all 4 evals against the de-contaminated skill; treat iteration 1's with_skill

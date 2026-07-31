@@ -21,15 +21,18 @@ cost (the adoption blocker), then hygiene.
 
 ## P0 — Restore trust in the data (everything else is prioritized on it)
 
-- [ ] **1. Finish the iteration-2 clean re-run.** All benchmark numbers cited anywhere
-      (98% vs 62%, per-eval tables) come from the contaminated skill; iteration 2 is
-      half-executed in `deep-code-review-workspace/iteration-2/` (baselines done, most
-      `with_skill` runs missing). Until this lands, treat iteration-1 with_skill figures
-      as an upper bound and don't use them to justify design choices.
+- [x] **1. Finish the iteration-2 clean re-run.** *(Done 2026-07-31.)* All four with_skill
+      evals re-run against the decontaminated skill: **41/42 (98%) vs baseline 26/42 (62%)
+      — identical to the contaminated headline**, so iteration-1's structural conclusions
+      stand on clean evidence. Wrinkle discovered en route: the first iteration-2 with_skill
+      runs (evals 2–4) provably predated the decontamination commit and were archived under
+      `with_skill-pre-decontamination/`. Full analysis:
+      `deep-code-review-workspace/iteration-2/benchmark.md`; log:
+      `deep-code-review/meta/iterations.md` §Iteration 2.
 - [ ] **2. Wire `check_contamination.py` into the eval flow as a mandatory pre-run gate.**
-      The script exists precisely because a hand-run grep wasn't enough, yet nothing runs
-      it automatically. One line in the eval procedure ("run it; abort on exit 1") converts
-      a lesson into a mechanism.
+      *(Ran manually as a gate before every iteration-2 run — CLEAN — and iterations.md now
+      declares it standing policy. Still unwired mechanically: nothing enforces it; a
+      run-evals entry script or pre-commit hook should call it and abort on exit 1.)*
 - [ ] **3. Test suite for `scope_detect.py`.** Already promoted to top of
       `deep-code-review/meta/IMPROVEMENTS.md` and still unstarted. It is the deterministic
       backbone every review gates on, and it has already shipped three silent bugs that two
@@ -52,8 +55,12 @@ cost (the adoption blocker), then hygiene.
       evals at all**, yet it owns the knowledge-base contract both review skills read —
       at minimum a smoke eval that indexes a small fixture and checks INDEX.md validity.)
 - [ ] **6. Make the findings cap real, and reconcile it.** The ~15 cap failed in *both*
-      configurations (17 and 27) — a stated-then-ignored cap teaches the model every other
-      cap is soft. Either enforce it as an explicit truncation step in Step 7 (count,
+      iteration-1 configurations (17 and 27) — a stated-then-ignored cap teaches the model
+      every other cap is soft. *(Third data point from the iteration-2 clean re-run: what
+      counts as "a finding" is undefined — eval-1's report self-declares 17 "items" where
+      the mechanical counter sees 14 numbered findings, and eval-4's only failed assertion
+      is a cap-pressure artifact, a bundled roll-up table whose rows carry no traces. Fix
+      needs both a definition and an enforced truncation step.)* Either enforce it as an explicit truncation step in Step 7 (count,
       cut, disclose in Coverage) or delete it. While there: `severity-rubric.md` says ~15,
       `business-logic-review/references/output-contract.md` says ~12 — if the BLR cap is
       deliberately tighter because its findings merge into the ~15, say so in one sentence;

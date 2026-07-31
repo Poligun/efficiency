@@ -1,0 +1,100 @@
+{
+  "eval_id": 1,
+  "configuration": "with_skill",
+  "pass_rate": 1.0,
+  "passed": 18,
+  "failed": 0,
+  "total": 18,
+  "expectations": [
+    {
+      "text": "Reports that caller-supplied strings are interpolated into CEL expression source without validation, anchored in src/alert/mod.rs",
+      "passed": true,
+      "evidence": "F2 'Unvalidated `Decimal` and symbol strings are spliced into compiled CEL source' is anchored at `src/alert/mod.rs:32` and states `translate_built_in_trigger` builds CEL source text by format!-interpolating request strings inside single-quoted literals at eleven sites, and that `validate_alert_definition` checks only presence. Verified at src/alert/mod.rs:32: `let expr = format!(\"{{'fired': price >= decimal('{}')}}\", price.value);` — the quoted line is exact. Per the ground-truth Corrections section the assertion tests the defect, not the injection severity framing; F2 explicitly reasons the boundary question ('not privilege escalation — NativeTrigger already lets the same caller submit arbitrary CEL')."
+    },
+    {
+      "text": "Reports that DeleteAlert can never succeed, citing both that create starts the bot and that delete_bot rejects Running bots",
+      "passed": true,
+      "evidence": "F1 (CRITICAL, src/server/mod.rs:664): 'create_alert calls create_bot and then start_bot... delete_alert then calls delete_bot, which refuses any bot in that state, and never calls stop_bot.' Both halves are quoted: the `delete_bot(&request.alert_id)` call (verified src/server/mod.rs:664-665) and `if metadata.status == BotStatus::Running as i32 { return Err(format!(\"Cannot delete a running bot: {}\", bot_id).into()); }` (verified src/bot/bot_manager.rs:191-192). Matches ground truth G2 exactly."
+    },
+    {
+      "text": "Reports the total absence of deduplication, cooldown, or edge-triggering, so an alert re-fires every interval",
+      "passed": true,
+      "evidence": "D2 'Alert firing is level-triggered with no cooldown or edge detection' (HIGH, src/bot/alert_bot.rs:91) states the notify branch tests the level of `TriggerResult.fired`, not the transition, and cites the absence grep `rg -ni 'cooldown|debounce|throttle|dedup|idempot|last_fired|already_fired' src/ proto/` → no matches, matching ground truth G3's zero-hit grep. It quantifies the consequence: '~4,700 dispatches' from one crossing at a 5s interval."
+    },
+    {
+      "text": "Reports at least one silent fallback that inverts trigger semantics (decimal() parse failure to 0.0, unwrap_or(0.0) on prices, or reduce_bars returning NaN)",
+      "passed": true,
+      "evidence": "Two of the three are reported. F2 quotes the `decimal` registration returning 0.0 on parse failure and spells out the inversion: '\"1,250.00\" ... the parse fails, decimal() returns 0.0, and 180.25 >= 0.0 fires on the first tick and every tick after. The same input on FallBelow never fires.' F5 quotes `f64::NAN` from src/alert/alert_engine.rs:116 and argues the dead surface is wider than the breakout triggers. Both quotes verified verbatim at src/alert/alert_engine.rs:31-35 and :114-116."
+    },
+    {
+      "text": "Reports declared-but-unwired proto surface (market_hours_filter, required_symbols, or initial_state having no consumer)",
+      "passed": true,
+      "evidence": "All three from ground truth G5 are reported. F3 covers `required_symbols` ('rg -n required_symbols over the whole repo returns the proto line and nothing else'), anchored proto/poligun/ninniku/alert/alert.proto:238 — verified, that is the declaration line. F9 covers `NativeTrigger.initial_state` ('exactly two occurrences: the declaration, and initial_state: None in the translator'; declaration verified at alert.proto:53) and `EvalSchedule.market_hours_filter` ('zero references outside the proto')."
+    },
+    {
+      "text": "Reports the breaking reserved change in account_info.proto AND notes it is unrelated to the alerting feature",
+      "passed": true,
+      "evidence": "D1 is titled '`AccountInfo` drops two day-trading fields, and it's not this branch's business' at proto/poligun/ninniku/alpaca/account_info.proto:31 (verified: `reserved 7; // Was pattern_day_trader`). It explains the client impact (proto3 scalars have no presence, old clients decode false/0) and states the unrelatedness twice: 'This landed in commit aad07b3 \"Bump dependnecies\"... A breaking account-API change riding in a dependency-bump commit inside a CEL-alerting branch' and the Open question 'Why is this in this branch?'"
+    },
+    {
+      "text": "Reports the unchecked i32 multiplication or the silent time_unit fallthrough in lookback_duration",
+      "passed": true,
+      "evidence": "The assertion is satisfied by the second disjunct. F8 quotes the fallthrough verbatim — `match time_unit.to_uppercase().as_str() { \"MINUTE\" => 60, \"HOUR\" => 3600, _ => 60, }` — verified at src/alert/mod.rs:207-211 inside `lookback_duration`, and names the defect explicitly: 'client sends DAY, silently gets a 1-minute window'. It also notes '\"HOUR\" isn't representable in the canonical enum today'. The i32 overflow is not reported, but the assertion is an either/or."
+    },
+    {
+      "text": "Does NOT file a finding that module declaration lists should be alphabetized (src/alpaca/mod.rs contradicts it)",
+      "passed": true,
+      "evidence": "No finding (D1-D3, F1-F14) concerns module ordering. The convention ledger row reads 'mod declarations alphabetized | 5 | 1 | established but formatter-owned — excluded', and the only mention of out-of-order mods sits in Design notes with the explicit disclaimer 'Not a review finding — just a signal the wrap-up checklist was skipped'. Trap avoided."
+    },
+    {
+      "text": "Does NOT file 'missing tests' as a convention violation (repo has only 2 test modules total)",
+      "passed": true,
+      "evidence": "No finding mentions missing tests. The convention ledger explicitly disposes of it with the correct counts: 'Unit tests in #[cfg(test)] modules | 2 of 49 files | — | absent — \"add tests\" is a project decision, not a finding', matching ground truth's count of 2 test modules. Trap avoided."
+    },
+    {
+      "text": "Does NOT file findings that clippy or rustfmt would catch",
+      "passed": true,
+      "evidence": "All 17 filed items (D1-D3, F1-F14) are design/logic/contract issues no linter detects. The single formatter observation is quarantined in Design notes and self-disclaimed: 'cargo fmt wasn't run... Not a review finding — just a signal the wrap-up checklist was skipped, which is also why I didn't file anything else a formatter or clippy would catch.' Trap avoided."
+    },
+    {
+      "text": "Does NOT claim that the 'reserved' keyword is itself a breaking change",
+      "passed": true,
+      "evidence": "D1 pre-empts the trap in its second sentence: '`reserved` is the right ritual — that isn't the problem. The problem is that proto3 scalars have no presence, so any client still built against the old schema decodes false and 0.' The finding is located in the field removal and its client-decode impact, exactly as ground truth requires. Trap avoided."
+    },
+    {
+      "text": "Every finding has a severity, a fix-clarity label, and a file:line anchor",
+      "passed": true,
+      "evidence": "Every heading carries the triple, e.g. 'F1 — ... (CRITICAL · scoped · confirmed)' followed by `src/server/mod.rs:664`, and 'D1 — ... (HIGH · needs-decision · grounded)' followed by `proto/poligun/ninniku/alpaca/account_info.proto:31`. grading_mechanical.json S1_labels_present records severity_mentions 23, fix_clarity_mentions 17 across the findings and passed: true."
+    },
+    {
+      "text": "Every file:line anchor cited actually exists in the repo at that path",
+      "passed": true,
+      "evidence": "grading_mechanical.json S2_anchors_exist: 24 anchors checked, 24 valid, no nonexistent paths and no out-of-range lines (the only exemption is the external crate path cel-0.14.0/src/env.rs cited in Coverage as a refutation source, not a finding anchor). Spot-checks confirm: src/alert/mod.rs:32, src/alert/alert_engine.rs:116, src/server/mod.rs:664, alert.proto:53 and :238, and account_info.proto:31 all resolve to the claimed content."
+    },
+    {
+      "text": "Every finding quotes at least one line of real code as evidence",
+      "passed": true,
+      "evidence": "Each of D1-D3 and F1-F14 carries at least one fenced code block; several carry two (F1, F2, F5, F8, F9, F13). Spot-verification against /Users/yuhanzhao/GitHub/ninniku confirms the quotes are real and verbatim: the `format!(\"{{'fired': price >= decimal('{}')}}\", price.value)` line, the `decimal` closure returning 0.0, the `f64::NAN` sentinel with its comment, the `Cannot delete a running bot` guard, `repeated string required_symbols = 4;`, `string time_unit = 2; // e.g. \"MINUTE\"`, and `optional google.protobuf.Struct initial_state = 4;`."
+    },
+    {
+      "text": "Report includes a Coverage statement naming which aspects ran",
+      "passed": true,
+      "evidence": "A bolded '**Coverage.**' paragraph names all four aspects and their material: 'wire contracts (6 files), code API (5 files), business logic (18 files), conventions (3 new files) — plus the surface-consistency pass'. It also discloses the degraded verification honestly ('I dispatched 12 verifiers and only 4 returned — the other 8 died on upstream 529 Overloaded errors'), that nothing was skipped, and that no knowledge base existed. grading_mechanical.json S4_coverage_section: passed."
+    },
+    {
+      "text": "Total findings is 15 or fewer",
+      "passed": true,
+      "evidence": "grading_mechanical.json S5_finding_count records count 14 against cap 15, passed: true, and is designated authoritative for finding count. Noting the tension for the record: the report's own Coverage line says 'I'm reporting 17 items against a soft cap of ~15' (3 needs-decision items D1-D3 plus 14 findings F1-F14), and it discloses that it demoted eight lower-value observations to Design notes rather than dropping them. Graded per the authoritative mechanical count."
+    },
+    {
+      "text": "Findings are ordered by severity descending, with any CRITICAL/HIGH needing a decision surfaced first",
+      "passed": true,
+      "evidence": "The report opens with a dedicated '## Needs a decision before merge' section holding D1-D3, all HIGH · needs-decision, ahead of everything else — exactly what the assertion demands. The '## Findings' section then runs strictly descending: F1 CRITICAL, F2 CRITICAL, F3-F8 HIGH, F9-F14 MEDIUM, with no inversion anywhere."
+    },
+    {
+      "text": "Nothing was written to the ninniku working tree (git status unchanged)",
+      "passed": true,
+      "evidence": "grading_mechanical.json S7_worktree_clean: passed, with current and baseline byte-identical ('M Cargo.lock / M Cargo.toml / M src/bot/alert_bot.rs' in both). The report corroborates intent: 'No knowledge base exists ... so nothing was recalled and ... nothing was written; the proposed seed is at the bottom', and the closing offer to post to GitHub is gated on user approval."
+    }
+  ]
+}

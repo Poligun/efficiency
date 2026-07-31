@@ -1,1 +1,1 @@
-{"total_tokens": 28447, "duration_ms": 113200, "total_duration_seconds": 113.2, "tool_uses": 9, "subagents_dispatched": 0}
+{"total_tokens": 33985, "duration_ms": 148271, "total_duration_seconds": 148.3, "tool_uses": 9, "subagents_dispatched": 0, "findings_reported": 0, "note": "Early stop at Step 1 (all aspects inactive); short report shape. Executor: claude-opus-5 subagent."}

@@ -1,0 +1,35 @@
+{
+  "eval_id": 3,
+  "configuration": "with_skill",
+  "pass_rate": 1.0,
+  "passed": 5,
+  "failed": 0,
+  "total": 5,
+  "expectations": [
+    {
+      "text": "Correctly identifies that no review aspects are active and says so explicitly",
+      "passed": true,
+      "evidence": "The report has an explicit Coverage paragraph: \"Nothing ran, and that's the correct result rather than a gap... All four aspects were inactive for that reason, none at your request\", then enumerates each with a reason (\"`wire_api` — no wire contract, route, or CLI changes.\", \"`logic` — 0 changed lines in source/wire files (threshold 25).\", \"`convention` — no new code; conventions are only audited on new code.\"). It also states the scope basis: \"Scope detection over `f451521..4df4a5b` (1 commit, clean working tree) found 2 changed files\". Verified against the fixture: HEAD is 4df4a5b \"Bump dependencies\", parent f451521, working tree clean, and `git diff --name-only main...chore/bump-deps` returns exactly Cargo.lock and Cargo.toml. grading_mechanical.json confirms S4_coverage_section passed."
+    },
+    {
+      "text": "Notes the reqwest 0.12.4 -> 0.13.0 major bump",
+      "passed": true,
+      "evidence": "\"**`reqwest` 0.12.4 → 0.13.0 is a breaking bump.** For a `0.x` crate, Cargo treats the minor position as the major, so `0.12 → 0.13` is a semver-incompatible release with no compatibility guarantee.\" The fixture diff confirms `-reqwest = \"0.12.4\"` / `+reqwest = \"0.13.0\"`. The semver reasoning is also correct for 0.x crates, and the report correctly qualifies blast radius: `grep -rn reqwest src/` in the fixture returns no hits, matching \"Nothing in `src/` imports `reqwest` today\"."
+    },
+    {
+      "text": "Does NOT invent findings about the unchanged application code (src/main.rs, src/config.rs)",
+      "passed": true,
+      "evidence": "The report reports zero findings (grading_mechanical.json S5_finding_count.count = 0) and states \"no findings were verified, so nothing below carries a verification verdict\" and \"There is no code here to find bugs in, and I'd rather say so than pad the report.\" src/main.rs and src/config.rs are mentioned once, only as negative evidence bounding the reqwest bump's blast radius (\"`grep` over `src/main.rs` and `src/config.rs` finds no reference\") — a verified-true claim, not a finding against that code. The two remaining observations concern Cargo.toml/Cargo.lock, both of which are in the diff."
+    },
+    {
+      "text": "Does NOT dispatch review subagents for inactive aspects",
+      "passed": true,
+      "evidence": "timing.json records \"subagents_dispatched\": 0 with \"note\": \"Early stop at Step 1 (all aspects inactive); short report shape.\" and only 9 tool uses. The report states this directly: \"No review agents were dispatched and no findings were verified\". Nothing in the report attributes any content to an aspect reviewer."
+    },
+    {
+      "text": "Uses substantially fewer tokens than eval 1",
+      "passed": true,
+      "evidence": "This run used 33,985 total tokens over 148.3s and 9 tool uses (with_skill/timing.json); eval 1's with_skill run used 337,308 tokens over 2129.1s, 131 tool uses, 17 subagents. That is a 9.9x reduction (89.9% fewer tokens), comfortably \"substantially fewer\". It is also cheaper than this eval's own without_skill run (47,353 tokens)."
+    }
+  ]
+}

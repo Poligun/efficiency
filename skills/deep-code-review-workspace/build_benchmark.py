@@ -8,6 +8,7 @@ these literally and renders zeros if they drift.
 
 from __future__ import annotations
 
+import datetime
 import glob
 import json
 import os
@@ -15,6 +16,11 @@ import sys
 
 ITER = sys.argv[1] if len(sys.argv) > 1 else "iteration-1"
 SKILL = "deep-code-review"
+
+# Per-iteration caveat lives in <iteration>/caveat.txt so this script doesn't
+# hardcode one iteration's history into every later benchmark.
+_caveat_path = os.path.join(ITER, "caveat.txt")
+CAVEAT = open(_caveat_path).read().strip() if os.path.exists(_caveat_path) else ""
 
 runs = []
 for eval_dir in sorted(glob.glob(os.path.join(ITER, "eval-*"))):
@@ -61,14 +67,11 @@ benchmark = {
         "skill_path": f"/Users/yuhanzhao/GitHub/efficiency/skills/{SKILL}",
         "executor_model": "claude-opus-5[1m]",
         "analyzer_model": "claude-opus-5[1m]",
-        "timestamp": "2026-07-29T00:00:00Z",
+        "timestamp": datetime.datetime.now(datetime.timezone.utc)
+                     .strftime("%Y-%m-%dT%H:%M:%SZ"),
         "evals_run": sorted({r["eval_id"] for r in runs}),
         "runs_per_configuration": 1,
-        "caveat": (
-            "with_skill runs used a version of the skill that contained examples drawn "
-            "from this eval target. Findings matching those examples are not independent "
-            "evidence. Contamination was removed after the run; iteration 2 re-measures."
-        ),
+        "caveat": CAVEAT,
     },
     "runs": runs,
 }
@@ -77,7 +80,7 @@ out = os.path.join(ITER, "benchmark.json")
 json.dump(benchmark, open(out, "w"), indent=2)
 
 # Human-readable summary
-lines = ["# Benchmark — deep-code-review, iteration 1", ""]
+lines = [f"# Benchmark — deep-code-review, {ITER.replace('-', ' ')}", ""]
 lines.append("| Eval | Config | Pass | Rate | Time (s) | Tokens | Tools |")
 lines.append("|---|---|---|---|---|---|---|")
 for r in runs:
@@ -97,6 +100,7 @@ for cfg in ("with_skill", "without_skill"):
     lines += ["", f"**{cfg}** — {tp}/{tt} assertions ({tp/tt:.0%}), "
                   f"{tok:,} tokens, {sec/60:.0f} min total"]
 
-lines += ["", "> " + benchmark["metadata"]["caveat"]]
+if CAVEAT:
+    lines += ["", "> " + CAVEAT]
 open(os.path.join(ITER, "benchmark.md"), "w").write("\n".join(lines) + "\n")
 print("\n".join(lines))

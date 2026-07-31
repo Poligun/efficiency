@@ -1,1 +1,1 @@
-{"total_tokens": 188195, "duration_ms": 1098239, "total_duration_seconds": 1098.2, "tool_uses": 60, "subagents": 13, "findings_reported": 15}
+{"total_tokens": 259009, "duration_ms": 2508609, "total_duration_seconds": 2508.6, "tool_uses": 82, "subagents": 6, "findings_reported": 17, "note": "Wall-clock inflated by a harness safety-classifier outage mid-run that killed Agent/Bash tools (~6 failed dispatches, work redone after recovery); 5 of 12 eligible findings verified, rest stamped unverified and disclosed. Executor: claude-opus-5 subagent."}

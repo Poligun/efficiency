@@ -1,207 +1,192 @@
-## Review: `cel-alert` — CEL-evaluated price alerts as a new bot type
+## Review: `cel-alert` — CEL-based alert engine, AlertBot, and the CreateAlert/DeleteAlert RPCs
 
-Your instinct is right, and I think what's bothering you is that the *shape* of the code is
-defensive everywhere — `unwrap_or`, NaN sentinels, `warn!` on every failure path — while the
-behavior underneath is "keep going and produce a wrong answer." Almost every finding below is
-a place where a failure turns into a value instead of an error. Two things stand out as
-ship-blockers: **`DeleteAlert` can never succeed on an alert created by `CreateAlert`**, and
-**a malformed price string makes `RiseAbove` fire unconditionally on every evaluation**.
+The evaluation logic itself is mostly sound; what's off is everything *around* one evaluation. Three things would change your plan: **a trigger that fires keeps firing on every tick with no dedup anywhere in the tree**, **`decimal()` swallows a parse failure and returns `0.0`, which flips `price >= threshold` to permanently-true and `price <= threshold` to permanently-false**, and **`DeleteAlert` can never succeed on an alert that `CreateAlert` just started**, because `delete_bot` refuses `Running` bots and `create_alert` starts the bot before returning. Several of the worst ones are latent behind the `reduce_bars` stub and the un-wired Telegram sink — they're written into the code and become live the day those land, so I've marked each one rather than discounting it.
 
-Read the whole thing with one caveat in mind: the Telegram sink is a `TODO`, so today every
-"the alert notifies" consequence below terminates in an `info!` line. These are all latent
-until `alert_bot.rs:105` is wired up — which is exactly when they become expensive.
+**Coverage.** Behavior model built from `alert.proto`, `alert_engine.rs`, `alert/mod.rs`, `alert_bot.rs`, `bot_loop.rs`, `bot_manager.rs`, `server/mod.rs`. `scope_detect.py` reports `code_lines: 1215` (1112 lines of `Cargo.lock` churn excluded), above the 400-line inline threshold, so A1 (lifecycle) and A10 (concurrency) ran as one read-only subagent and A6 (declared surface) as another; A2, A3, A4, A5, A7, A8, A9 ran inline where holding the whole model matters most. All ten angles ran — A7 gated in (CEL source built by `format!`), A8 (i32/i64 arithmetic on wire values), A9 (positional trigger state), A10 (`block_in_place`, `Mutex`, `tokio::spawn`). No knowledge base exists at `.claude/knowledge/` or `~/.claude/projects/-Users-yuhanzhao-GitHub-ninniku/knowledge/`, so nothing was recalled; a seed is proposed at the end.
 
-**Angles run.** A1 lifecycle, A2 repeat-fire, A3 boundary/window, A4 fallback/sentinel,
-A5 partial failure, A6 declared surface (all six core). Conditionals: A7 taint fired
-(`format!` builds CEL), A8 numeric domain fired (arithmetic on request-supplied ints, float
-money), A9 identity fired (`states[i]` is positional). A10 concurrency fired on the gate
-(`block_in_place`, `Mutex`, broadcast channel) but produced nothing I could pin a second
-concurrent actor to, so I'm reporting none of it rather than speculating. A6 and A7 ran as
-subagents (repo-wide grep fan-out and a dig into the vendored `cel` crate); the rest ran
-inline so one reader held the whole model. No knowledge base exists at
-`.claude/knowledge/` or `~/.claude/projects/…/knowledge/`, so this review ran with zero
-priors — every question in the last section is genuinely open.
+Cut for length (verified, not written up): `get_highest_high`'s SQL window is inclusive at both ends (`start_time >= $6 AND start_time <= $7`, `src/postgres/bar.rs:216-217`) so consecutive windows double-count the boundary bar — currently harmless, it has zero callers; `create_alert` leaves an orphaned Redis row if `start_bot` fails after `create_bot` succeeded, with a `bot_id` the client never receives (`src/server/mod.rs:618-629`); `delete_alert` checks account ownership but not bot *type*, so it will delete a non-alert bot on the same account (`src/server/mod.rs:659-662`).
 
-**What I cut** to stay near the finding cap, all lower-severity: the `Alert` proto message is
-declared and never used (and its doc comment says it's "stored in AlertBotParams", which
-stores an `AlertDefinition` instead); `BackgroundTaskManager.background_tasks` never removes
-finished handles; `create_bot`'s one-trading-bot-per-account check is a read-then-write with
-no lock; and the uncommitted `info!("AlertBot: trigger {} fired — {}")` at `alert_bot.rs:90`
-logs `fired — false` for every non-firing trigger on every cycle.
+Refuted during trace-writing, so not reported: I expected the `reduce_bars` NaN sentinel to poison the trailing-stop watermark permanently. It doesn't — `max_decimal` is `a.max(b)`, and Rust's `f64::max` returns the *other* operand when one side is NaN, so a real price recovers the watermark the moment `reduce_bars` returns one. The comment at `alert_engine.rs:114-115` is correct.
 
 ---
 
 ## Needs a decision before merge
 
-### F1 — Nothing makes a firing happen at most once (HIGH · needs a decision)
-`src/bot/alert_bot.rs:89` · `src/alert/mod.rs:32`
+### CRITICAL — A fired trigger re-fires on every tick, forever
+`src/bot/alert_bot.rs:89-108` · fix: needs a decision · **latent** until the Telegram sink is wired (`warn!("AlertBot: Telegram notification not yet implemented")`, `alert_bot.rs:107`)
 
-`evaluate` notifies for every trigger whose `fired` is true, on every cycle, and there is no
-edge detection, cooldown, dedup key, or "already notified" marker anywhere in the branch.
-`RiseAbove` and `FallBelow` don't even emit a `next_state`, so a user can't build one
-themselves — the only key they could persist through isn't written.
+`evaluate` is level-triggered: it notifies for every result where `fired == true`, with no edge detection, no cooldown, and no persisted "already notified" marker. `TriggerResult` has no field for one, `EvalSchedule` has no cooldown key, and nothing in the tree implements one:
 
-```rust
-// src/bot/alert_bot.rs:89-93
-for (i, result) in results.iter().enumerate() {
-    if !result.fired {
-        continue;
-    }
 ```
-```rust
-// src/alert/mod.rs:32 — note: no 'next_state' key at all
-let expr = format!("{{'fired': price >= decimal('{}')}}", price.value);
+$ rg -i 'cooldown|debounce|throttle|dedup|idempot|last_fired|last_sent|seen' src/ proto/
+(no matches)
+$ rg -n 'prev_fired|was_fired|fired_at' src/ proto/
+(no matches)
 ```
 
-Negative grep establishing absence:
-`rg -n 'cooldown|debounce|throttle|dedup|idempot|already_fired|last_fired|last_sent|edge' src/`
-→ 2 hits, both the substring "edge" inside the word "Acknowledges" in
-`bot_manager.rs:30,32`. No real mechanism exists.
+The proto's own wording is edge-shaped — `RiseAbove` is documented as "Fires when price rises above (water_mark + offset)" (`alert.proto:125`), and *rising above* is a crossing, not a state.
 
-**Trace.** `RiseAbove{price: "150.00"}` on AAPL with `eval_schedule.interval = {seconds: 5}`.
-AAPL opens at 151 and stays there. The trigger returns `fired: true` on every cycle:
-**720 notifications per hour, 5,760 per trading day, until the user deletes the alert** — and
-per F2 they currently can't delete it. At the documented default of 30s it's still 120/hour.
+**Trace.** `RiseAbove{price: "100"}` on AAPL with `eval_schedule.interval = {seconds: 5}`. AAPL opens at 105 and stays there all session. Every 5 s the expression `{'fired': price >= decimal('100')}` evaluates true → 720 notifications per hour, 4,680 over a 6.5-hour session, and it resumes tomorrow. Nothing survives a restart either: `trigger_states` and `last_eval_time` are in-memory `Mutex` fields (`alert_bot.rs:13,15`), so a redeploy re-arms whatever suppression you add unless it's persisted.
 
-**Fix.** This is a product call, so I'm not guessing. The proto's own wording is edge-flavored
-("Fires when price **rises above**…", "Fires when price **falls below**…", `alert.proto:117-163`),
-which is what makes me raise it — but the `AlertDefinition` contract at `alert.proto:223-225`
-only says "The alert fires when any trigger returns `TriggerResult{fired: true}`", which is
-level-neutral. **If level-triggered is intended, this drops to a MEDIUM documentation gap and
-the fix is to say so in `alert.proto`.** If edge-triggered is intended, the fix is a
-persisted `last_fired` per trigger index, or a `RiseAbove`/`FallBelow` translation that emits
-`next_state: {'was_above': ...}` and gates on the transition. See Q1.
+**Fix.** This needs your call on semantics before an implementation, and the two answers produce different code. If firing is meant to be **edge-triggered**, the mechanism already exists — carry a `fired` bit in `TriggerResult.next_state` and gate the notification on `!prev_fired && fired`, which costs one field and no new proto. If it's meant to be **level-triggered with suppression**, that's a new `cooldown` duration on `EvalSchedule` plus a persisted `last_notified_at`, and it has to survive process restarts to be worth anything.
 
 ---
 
 ## Findings
 
-### F2 — `DeleteAlert` can never succeed on an alert `CreateAlert` made (CRITICAL · scoped)
-`src/server/mod.rs:658` · `src/bot/bot_manager.rs:191`
+### CRITICAL — `decimal()` returns 0.0 on a bad string, inverting the comparison
+`src/alert/alert_engine.rs:31-36` · fix: scoped
 
-`create_alert` calls `create_bot` and then `start_bot`, so every alert reaches
-`BotStatus::Running`. `delete_bot` refuses to delete a bot in that state, and the alert API
-surface has no stop operation — `ninniku.proto` adds only Create/Update/Delete. Follow the
-call sequence rather than each function alone and the delete path is unreachable by
-construction.
+The CEL `decimal` function substitutes `0.0` for any string `f64::parse` rejects, and only logs a warning. Every `BuiltInTrigger` threshold goes through it. Nothing upstream validates the string — `validate_alert_definition` (`src/server/mod.rs:682-701`) checks only that `triggers` is non-empty, `interval` is present, and `sink` is present, and `Decimal`'s own contract disclaims validation outright: *"The API will not perform any validation on the format of the string"* (`proto/poligun/ninniku/well_known_types.proto:5-8`).
 
 ```rust
-// src/bot/bot_manager.rs:191-193
-if metadata.status == BotStatus::Running as i32 {
-    return Err(format!("Cannot delete a running bot: {}", bot_id).into());
-}
-```
-```proto
-// proto/poligun/ninniku/ninniku.proto:60-61 — the contract says otherwise
-// Each alert runs in its own AlertBot. CreateAlert creates (and starts) the
-// AlertBot; DeleteAlert stops and removes it unconditionally.
+    ctx.add_function("decimal", |s: Arc<String>| -> f64 {
+        s.parse::<f64>().unwrap_or_else(|_| {
+            warn!("decimal(): failed to parse '{}', returning 0.0", s);
+            0.0
+        })
+    });
 ```
 
-**Trace.** `CreateAlert` → `create_bot` writes metadata with `status: Stopped`
-(`bot_manager.rs:143`) → `start_bot` → `resume_bot` spawns the loop → the loop sends
-`BotAckEvent::Started` (`bot_loop.rs:15`) → `bot_manager_loop` flips Redis to `Running`
-(`bot_manager.rs:356`). Now `DeleteAlert(alert_id)` → ownership check passes →
-`delete_bot` → `Status::internal("Cannot delete a running bot: <uuid>")`. **100% of alerts,
-100% of the time.** The only escape is `UpdateBotStatus(bot_id, STOPPED)` — a *bot* RPC, and
-even that is racy: `stop_bot` only sends an event and returns `Ok` immediately, so a
-`DeleteAlert` issued right after still sees `Running` until the async ack lands.
+**Trace.** A client sends `RiseAbove{price: {value: "1,250.00"}}` — a thousands separator, the single most common way a human writes that number. `"1,250.00".parse::<f64>()` fails → `0.0` → the generated expression `{'fired': price >= decimal('1,250.00')}` becomes `price >= 0.0`, true for every real quote → the alert fires on the first tick and never stops. The inverse is in the same function: `FallBelow{price: {value: "1,250.00"}}` becomes `price <= 0.0`, false for every real quote → the alert is silently dead for its entire life and the only trace is a `warn!` line. One typo produces either an unstoppable alert or an alert that can never fire, and the user cannot tell which from the API.
 
-**Fix.** Either have `delete_alert` stop-and-wait before calling `delete_bot`, or give
-`delete_bot` a force path for read-only bots. Related: `delete_alert` also doesn't check that
-the target is an `AlertBot` at all — see F14.
+**Fix.** Make `decimal()` return `Err(ExecutionError::function_error(...))` like `latest_quote` does, *and* parse-validate every `Decimal` in `validate_alert_definition` so the failure lands at `CreateAlert` with an `InvalidArgument` rather than at evaluation time. The second half matters more: a runtime error here trips the batch abort described two findings down.
 
 ---
 
-### F3 — A malformed price string makes the alert fire unconditionally (CRITICAL · scoped)
-`src/alert/alert_engine.rs:32`
+### HIGH — `DeleteAlert` can never succeed on an alert `CreateAlert` started
+`src/bot/bot_manager.rs:190-193` · fix: mechanical
 
-`decimal()` is the only bridge from the user's `Decimal.value` string into the comparison, and
-on a parse failure it substitutes `0.0` and logs a warning. Trace that value into the decision
-it feeds and it doesn't degrade the comparison — it inverts it.
+`create_alert` creates the bot and then starts it before returning (`src/server/mod.rs:618-629`), so every alert reaching the client is `Running`. `delete_bot` refuses exactly that:
 
 ```rust
-// src/alert/alert_engine.rs:31-36
-ctx.add_function("decimal", |s: Arc<String>| -> f64 {
-    s.parse::<f64>().unwrap_or_else(|_| {
-        warn!("decimal(): failed to parse '{}', returning 0.0", s);
-        0.0
-    })
-});
+        if metadata.status == BotStatus::Running as i32 {
+            return Err(format!("Cannot delete a running bot: {}", bot_id).into());
+        }
 ```
 
-This is reachable by design, not by abuse — `well_known_types.proto:5-9` states outright:
-*"The API will not perform any validation on the format of the string, so it is the
-responsibility of the client to ensure that it is a valid decimal number."* And
-`validate_alert_definition` (`src/server/mod.rs:682-701`) checks only that `triggers` is
-non-empty, `interval` is present, and `sink` is present — it never looks at a `Decimal`.
+`delete_alert` (`src/server/mod.rs:641-668`) calls straight into it with no stop first. The service contract says the opposite in two places: *"DeleteAlert stops and removes it unconditionally"* (`proto/poligun/ninniku/ninniku.proto:61`) and *"Stop and delete an alert's AlertBot"* (`:68`).
 
-**Trace.** A UI sends `RiseAbove{price: Decimal{value: "1,000.00"}}` — a thousands separator,
-the single most common way a formatted price reaches an API. `CreateAlert` returns
-`Ok(alert_id)`. At eval time the expression is `{'fired': price >= decimal('1,000.00')}`;
-`"1,000.00".parse::<f64>()` fails; the comparison becomes `price >= 0.0`, **true for every
-positive price**. Combined with F1, the user gets a notification every 5 seconds forever for
-a stock that never came near $1,000. `"$100"`, `""`, and `"100.00 USD"` all do the same.
+**Trace.** `CreateAlert` → `alert_id = "a1"`, status `Running`. `DeleteAlert{alert_id: "a1"}` → `Status::internal("Cannot delete a running bot: a1")`. The client has no `StopAlert` RPC; the only escape is reaching into the *bot* API with `UpdateBotStatus(a1, Stopped)` and then retrying — a bot_id the alert API never told them was a bot_id. The one window where delete works is the race between `start_bot` returning and `bot_manager_loop` writing `Running` on the `Started` ack (`src/bot/bot_manager.rs:352-360`), which is worse than it never working.
 
-And the inverse is in the same file: the identical input on `FallBelow` (`mod.rs:41`) produces
-`price <= 0.0`, which is **never** true — that alert is silently dead and the user is never
-told. One fallback that makes a condition always true and one that makes it always false, both
-from the same helper.
-
-**Fix.** `decimal()` should return `Result<f64, ExecutionError>` like `latest_quote` already
-does, so a bad parse fails the evaluation loudly instead of answering. Better still, reject
-unparseable decimals in `validate_alert_definition` so `CreateAlert` fails synchronously —
-the client can act on a `400`, but nobody reads the `warn!`.
+**Fix.** Have `delete_alert` call `stop_bot` and wait for the `Stopped` ack before `delete_bot`, or give `delete_bot` a stop-then-delete path. Either way the proto comment and the code agree afterwards.
 
 ---
 
-### F4 — The NaN sentinel silently kills three baselines, not just breakouts (HIGH · scoped)
-`src/alert/alert_engine.rs:98` · `src/alert/mod.rs:171`
+### HIGH — One trigger's missing market data disables every other trigger in the alert
+`src/alert/alert_engine.rs:180` · fix: scoped
 
-The stub's comment scopes its own blast radius to breakout triggers. But `reduce_bars` is also
-how `translate_baseline` resolves the `high`, `low`, and `bar` baselines — so NaN becomes the
-`price` binding for *any* trigger type built on those baselines.
+`evaluate_alert_definition` propagates with `?` inside the loop over triggers, so the first failure abandons the rest of the batch. Two things make that failure routine rather than exceptional: `latest_quote` converts *absence* into an error (`Ok(None) => Err(ExecutionError::function_error("latest_quote", format!("no data for symbol: {}", symbol)))`, `alert_engine.rs:63-66`), and nothing subscribes to market data at all (next finding). The contract states the opposite of abort-on-first: *"The alert fires (dispatches to sink) when any trigger returns TriggerResult{fired: true}. Each trigger maintains independent state across evaluations."* (`alert.proto:223-226`).
 
 ```rust
-// src/alert/alert_engine.rs:98-99, 114-116
-// --- reduce_bars: stub — bar range queries not yet in MarketData trait.
-//     Returns sentinel values so breakout triggers silently never fire.
-// NaN is the safe sentinel: all IEEE 754 comparisons against NaN return false,
-// so no trigger fires regardless of direction or baseline type.
-f64::NAN
-```
-```rust
-// src/alert/mod.rs:171-174 — a non-breakout trigger routed through the same stub
-Some(BaselineType::High(())) => format!(
-    "reduce_bars('{}', 1, 'MINUTE', context.last_eval_time, context.now, 'max', 'high')",
-    symbol
-),
+        let result =
+            evaluate_trigger_config(trigger_config, state, last_eval_time, market_data.clone())?;
 ```
 
-**Trace.** `RiseAbove{price: "150.00"}` with `baseline: {bar: {multiplier: 5, time_unit:
-"MINUTE", field: close}}` — a completely reasonable "alert me when the 5-minute close crosses
-150." `price` binds to NaN; `NaN >= 150.0` is false; the alert never fires, forever, and the
-only signal is one `warn!` line per trigger per cycle. **Four of six `BuiltInTrigger` types
-and three of six baseline types are silently non-functional**, while `CreateAlert` accepts
-them all with a success response.
+**Trace.** An alert with `triggers[0]` on a delisted or mistyped symbol and `triggers[1]` a working `RiseAbove` on AAPL. Every tick: trigger 0 → `latest_quote` → `Ok(None)` → `Err` → `?` → `evaluate_alert_definition` returns `Err` → `alert_bot.rs:81-84` logs `error!` and returns `Ok(interval)`. Trigger 1 is never evaluated, for the life of the alert. Two side effects compound it: any `states[i]` already written earlier in the aborted pass stays written (`alert_engine.rs:182-184`), so state advances for the triggers that ran and not the ones that didn't; and the failure is invisible — `BotStatus` has only `Running` and `Stopped` (`rg 'BotStatus::' src/`), so the alert reports healthy forever while evaluating nothing.
 
-Also note `src/postgres/bar.rs:200` adds `get_highest_high` — a bar range query — in this very
-branch, and `rg -n 'get_highest_high' src/` returns exactly one hit: the definition. The
-replacement for the stub was written and never connected.
-
-**Fix.** Either reject `high`/`low`/`bar` baselines and breakout triggers in
-`validate_alert_definition` with `Status::unimplemented` (honest, and fails at create time),
-or wire `reduce_bars` to `Bar::get_highest_high` and its siblings. At minimum, correct the
-comment — its claim about "regardless of baseline type" is what makes the stub look safe.
+**Fix.** Collect per-trigger results instead of `?`-ing out: give `TriggerResult` an error variant (or return `Vec<Result<TriggerResult, _>>`) so one dead symbol degrades one trigger. Separately, decide whether "no quote yet" should be an `Err` at all — an empty/absent result that the expression can test is the more useful shape.
 
 ---
 
-### F5 — An unrecognized `time_unit` silently becomes minutes (HIGH · mechanical)
-`src/alert/mod.rs:206`
+### HIGH — `required_symbols` has no consumer; nothing subscribes to market data
+`proto/poligun/ninniku/alert/alert.proto:238` · fix: scoped
 
-The unit lookup has a default arm, and the default is not "error" — it's "60."
+The field is documented as the thing that makes the whole feature work: *"Symbols required across all triggers. The engine subscribes to market data for these symbols once for the whole alert. ... For NativeTrigger, this is the only source of symbol information since CEL expressions are opaque at parse time."* (`alert.proto:233-237`). There is no reader.
+
+```
+$ rg -w 'required_symbols' /Users/yuhanzhao/GitHub/ninniku/src /Users/yuhanzhao/GitHub/ninniku/proto
+proto/poligun/ninniku/alert/alert.proto:238:  repeated string required_symbols = 4;
+```
+
+Nor is there anything to call: the `MarketData` trait (`src/bot/market_data.rs:6-24`) exposes only `latest_bar`, `latest_quote`, `latest_trades` — three point queries, no subscribe. Every `subscribe` in the repo belongs to the Alpaca crypto websocket or a tokio broadcast channel; none is reachable from alert code.
+
+**Trace.** A client creates a `NativeTrigger` alert with `required_symbols: ["AAPL"]` and a CEL expression calling `latest_quote('AAPL')`. Nothing subscribes AAPL. Whether `latest_quote` returns data depends entirely on whether some *other* bot happens to have subscribed the same symbol. When it returns `Ok(None)`, the previous finding turns that into a permanent silent outage for the whole alert. As shipped, an alert on a symbol nobody else is watching never evaluates successfully and never says so.
+
+**Fix.** Either wire `required_symbols` into a subscription at `create_bot`/`resume_bot` time and tear it down at delete, or — if `latest_quote` is genuinely meant to fetch on demand — correct the proto comment, because right now it promises a mechanism that does not exist. See the questions section; I can't tell which you intended.
+
+---
+
+### HIGH — Trigger state is positional and grow-only, so a config update rebinds it
+`src/bot/alert_bot.rs:62-65` · fix: scoped
+
+`trigger_states` is *"Per-trigger CEL state, indexed by trigger position in `AlertDefinition.triggers`"* (`alert_bot.rs:12`), and the only reconciliation is a grow-only loop:
 
 ```rust
-// src/alert/mod.rs:206-213
+        let mut states = self.trigger_states.lock().await;
+        while states.len() < trigger_count {
+            states.push(None);
+        }
+```
+
+A config update does not rebuild the bot. `bot_loop.rs:55-60` handles `BotEvent::ConfigUpdate` by calling `context.update_bot_config(bot_config).await`, which swaps the config inside the shared `RwLock` (`bot_context.rs:34-37`) — `create_bot_from_config` is never called again (`rg create_bot_from_config src/` → only the declaration and `bot_manager.rs:241`). Same `AlertBot`, same `Vec`, new trigger list. This is live today: `UpdateAlert` is unimplemented, but `UpdateBotConfig` (`src/server/mod.rs:567-586`) accepts any `BotConfig` including `AlertBotParams` and does no type check.
+
+**Trace.** An alert with `triggers[0] = TrailingBelow{AAPL, price_offset: "1.00"}` and `triggers[1] = RiseAbove{TSLA}`. After three hours `states[0] = {'hwm': 187.40}`. The user calls `UpdateBotConfig` with `triggers = [TrailingBelow{NVDA, price_offset: "1.00"}]`. Next tick, index 0 is NVDA but the state is AAPL's: `'hwm' in context.state` → true → `prev_hwm = 187.40` → `new_hwm = max_decimal(120.0, 187.40) = 187.40` → `fired: 120.0 <= 186.40` → **true immediately**, a trailing-stop alert on NVDA computed from AAPL's high-water mark. Shortening the list is the same bug in the other direction: `states` never shrinks, so a later re-lengthening re-attaches whatever was left at that index.
+
+**Fix.** Key state by something stable rather than position — a `trigger_id` on `TriggerConfig`, or a hash of the trigger's canonical bytes — or clear `trigger_states` and `last_eval_time` whenever the config changes. Clearing is the smaller change and is correct, just lossier.
+
+---
+
+### HIGH — Unvalidated client strings are interpolated into CEL source
+`src/alert/mod.rs:32` · fix: scoped
+
+`translate_built_in_trigger` builds the CEL program with `format!`, splicing `Decimal.value` and `symbol` straight in, and `Program::compile` then parses the result. Twelve sites do this (`mod.rs:32,41,52,55,61,68,88,90,96,103,127,147` plus the baselines at `:168-184`); the representative one:
+
+```rust
+            let expr = format!("{{'fired': price >= decimal('{}')}}", price.value);
+```
+
+Neither value is validated anywhere on the path — `validate_alert_definition` doesn't look at them, and `Decimal`'s contract explicitly disclaims validation (`well_known_types.proto:5-8`).
+
+**Trace.** Two, and the accidental one is the one that will actually happen. *(a)* A client sends `price.value = "1'250.00"` (Swiss/Italian digit grouping, or just a stray keystroke). The generated source is `{'fired': price >= decimal('1'250.00')}`, `Program::compile` fails at `alert_engine.rs:135-136`, the error propagates through the `?` at `:180`, and — per the batch-abort finding above — the *entire alert*, all triggers, evaluates nothing on every tick for the rest of its life, logging one line each time. *(b)* Deliberately: `price.value = "0') || true || decimal('0"` yields `{'fired': price >= decimal('0') || true || decimal('0')}`; `||` binds looser than `>=` and short-circuits, so `fired` is unconditionally true. Symbol is splicable the same way into `latest_quote('{}')`, letting a `BuiltInTrigger` issue quote lookups for symbols outside its own `symbol` field.
+
+**Calibration, honestly:** this is *not* a privilege escalation. `NativeTrigger.expression` already accepts arbitrary CEL from the same caller by design, so (b) grants nothing the API doesn't already offer. The severity is for (a) — a plausible input producing a permanent, silent, whole-alert outage.
+
+**Fix.** Parse `Decimal.value` into a number in the translator and format the number back out (which also fixes the previous finding at the same time), and validate `symbol` against a character allowlist. Splicing a parsed value is safe; splicing the raw string is not.
+
+---
+
+### HIGH — First evaluation, and every restart, uses a zero-width time window
+`src/alert/alert_engine.rs:210-212` · fix: scoped · **latent** until `reduce_bars` is implemented
+
+When there's no previous evaluation, `build_context_map` substitutes `now` for `last_eval_time`:
+
+```rust
+    let last_eval_val = last_eval_time
+        .map(|t| Value::Timestamp(t.with_timezone(&utc_offset)))
+        .unwrap_or_else(|| Value::Timestamp(now.with_timezone(&utc_offset)));
+```
+
+`Option::None` here means *"no history"*; the fallback silently converts it to *"zero elapsed time"*, and those are not the same statement. Every `High`, `Low`, and `Bar` baseline queries exactly that window — `reduce_bars('{}', 1, 'MINUTE', context.last_eval_time, context.now, 'max', 'high')` (`src/alert/mod.rs:172-184`).
+
+**Trace.** An alert with a `High` baseline is created at 09:31:00. First tick: `last_eval_time` is `None` → `context.last_eval_time == context.now == 09:31:00` → `reduce_bars(sym, 1, 'MINUTE', 09:31:00, 09:31:00, 'max', 'high')` — a window containing at most the single bar starting exactly on the second, and against `get_highest_high`'s `start_time >= $6 AND start_time <= $7` almost certainly nothing. The trigger cannot fire on its first evaluation regardless of the market. This is not a one-time cost: `last_eval_time` is an in-memory `Mutex<Option<...>>` (`alert_bot.rs:15,22`), so every process restart resets every alert to `None` and reproduces it.
+
+**Fix.** Keep `last_eval_time` as an absent value in the CEL context and make `reduce_bars` treat an absent lower bound as "the current bar" (or as an explicit lookback), rather than defaulting it to `now`. Whatever the rule is, it should be one the expression author can observe, not a silent substitution.
+
+---
+
+### HIGH — `last_eval_time` advances even when evaluation failed, skipping that window forever
+`src/bot/alert_bot.rs:76-77` · fix: scoped · **latent** until `reduce_bars` is implemented
+
+```rust
+        // Update last_eval_time regardless of evaluation outcome
+        *self.last_eval_time.lock().await = Some(Utc::now());
+```
+
+The comment says this is deliberate, so I'll state the consequence rather than assume it was an oversight. `context.last_eval_time` is the *low end of a data window*, not a health timestamp — the `High`/`Low`/`Bar` baselines read `[context.last_eval_time, context.now]` (`src/alert/mod.rs:172-184`). Advancing the low end past a window whose contents were never examined means those contents are never examined by anything, ever.
+
+**Trace.** `interval = {seconds: 60}`, a `High`-baseline `RiseAbove`. At 10:05:00 the quote fetch for another trigger in the same alert errors (see the batch-abort finding) → `evaluate_alert_definition` returns `Err` → no trigger is evaluated → line 77 sets `last_eval_time = 10:05:00` anyway. The 10:06:00 tick queries `[10:05:00, 10:06:00]`. A session high printed at 10:04:30 falls in `[10:04:00, 10:05:00]`, which no evaluation ever reads. The alert stays silent about a level it was created to watch, and nothing anywhere records that a window was dropped.
+
+A second, smaller version of the same issue: line 77 samples `Utc::now()` *after* evaluation, while each trigger's `context.now` was sampled at `alert_engine.rs:23` at the start of *its own* evaluation. The gap — evaluation duration, which includes blocking market-data round-trips — is excluded from both the window that just closed and the one that opens next.
+
+**Fix.** Advance `last_eval_time` only on success, and set it to the `now` the evaluation actually used rather than a fresh sample. Sampling `now` once per `evaluate` call and threading it through removes the second issue at the same time.
+
+---
+
+### HIGH — Unknown `time_unit` silently shrinks the lookback window by up to 1440×
+`src/alert/mod.rs:206-213` · fix: scoped · **latent** until `reduce_bars` is implemented
+
+```rust
 fn lookback_duration(lookback_bars: i32, multiplier: i32, time_unit: &str) -> String {
     let unit_seconds: i32 = match time_unit.to_uppercase().as_str() {
         "MINUTE" => 60,
@@ -212,426 +197,144 @@ fn lookback_duration(lookback_bars: i32, multiplier: i32, time_unit: &str) -> St
 }
 ```
 
-`time_unit` is a free-form `string` (`alert.proto:153`, comment `// e.g. "MINUTE"`) with no
-enum and no validation.
+`time_unit` is a free-form client string — the proto types it as `string` with only *"e.g. \"MINUTE\""* as guidance (`alert.proto:94`) and no validation anywhere. The `_ => 60` arm turns every unlisted unit into a minute instead of rejecting it. The mismatch is visible inside a single generated expression: the window is computed with the defaulted unit while `time_unit` is passed through *verbatim* as the bar size (`mod.rs:127`, `:147`).
 
-**Trace.** `BreakoutAbove{lookback_bars: 20, multiplier: 1, time_unit: "DAY"}` — "break out of
-the 20-day range." `"DAY"` hits `_ => 60`, so the lookback becomes `1200s` = **20 minutes
-instead of 20 days: wrong by a factor of 1,440**, with no warning. `"SECOND"` is wrong by 60×
-in the other direction. Once `reduce_bars` is real, this is a wrong answer that looks
-completely plausible in the logs.
+**Trace.** `BreakoutAbove{lookback_bars: 20, multiplier: 1, time_unit: "DAY"}` — a 20-day breakout, the most ordinary configuration this message exists for. `unit_seconds = 60` → duration `"1200s"` → the generated call is `reduce_bars('AAPL', 1, 'DAY', context.now - duration('1200s'), context.now, 'max', 'high')`: daily bars requested over a 20-*minute* window, wrong by 1440×. It will return at most one bar, so the trigger fires against effectively today's high and a "20-day breakout" alert fires on any intraday high. `"SECOND"`, `"WEEK"`, `"MIN"`, and `"Day"` (after `to_uppercase`, `"DAY"`) all take the same arm.
 
-**Fix.** Return `Err` on the default arm — `lookback_duration`'s callers are already in a
-`Result` context (`translate_built_in_trigger` returns `Result<_, TranslationError>`), so this
-is a two-line change. Longer term, `time_unit` should be the `TimeUnit` enum the repo already
-has in `postgres::models`, not a string.
+**Fix.** Return `Result` and reject unknown units, or make `time_unit` an enum in the proto. There's already a `TimeUnit` enum in `src/postgres/models.rs` used elsewhere in the repo — reusing it removes the free-string surface entirely.
 
 ---
 
-### F6 — Request-supplied numbers can panic the bot task, permanently (HIGH · scoped)
-`src/alert/mod.rs:212` · `src/bot/alert_bot.rs:55`
+### HIGH — `initial_state` is accepted over the wire and never read
+`proto/poligun/ninniku/alert/alert.proto:53` · fix: scoped
 
-Two arithmetic sites operate directly on ints from the gRPC request with no bounds check, and
-both can panic. A panicking background task is logged only at shutdown and never restarted.
+The contract promises it works: *"Seed state for the very first evaluation, accessible as `context.state[\"key\"]`. On subsequent evaluations, `TriggerResult.next_state` takes precedence."* The only occurrence in Rust sets it to `None`.
 
-```rust
-// src/alert/mod.rs:212 — i32 * i32 * i32
-format!("{}s", lookback_bars * multiplier * unit_seconds)
 ```
-```rust
-// src/bot/alert_bot.rs:55-56 — chrono's Duration::seconds panics out of range
-chrono::Duration::seconds(d.seconds)
-    + chrono::Duration::nanoseconds(d.nanos as i64)
+$ rg -w 'initial_state' /Users/yuhanzhao/GitHub/ninniku/src /Users/yuhanzhao/GitHub/ninniku/proto
+proto/poligun/ninniku/alert/alert.proto:53:  optional google.protobuf.Struct initial_state = 4;
+src/alert/mod.rs:160:        initial_state: None,
 ```
 
-`~/.cargo/registry/…/chrono-0.4.45/src/time_delta.rs:208-215` documents:
-*"Panics when `seconds` is more than `i64::MAX / 1_000`…"*. And `src/tasks.rs:36,49` shows a
-spawned task's panic is surfaced only by `cancel_and_wait_for_all_join_handles` at process
-shutdown — nothing restarts it.
+`context.state` is populated exclusively from `evaluate_alert_definition`'s `states` vec (`alert_engine.rs:178,218-221`), which starts life as `vec![None; trigger_count]` (`alert_bot.rs:21`).
 
-**Trace.** `CreateAlert` with `eval_schedule.interval = {seconds: 9223372036854776}` passes
-`validate_alert_definition` (it only checks presence). On the first `evaluate`, `Duration::seconds`
-panics; the spawned task unwinds and dies. Redis still says `Running`, so `resume_bots` won't
-restart it on the next server boot and `DeleteAlert` refuses it forever (F2) — **one valid RPC
-produces a permanently dead, permanently undeletable alert**. Separately,
-`BreakoutAbove{lookback_bars: 1000000, multiplier: 1000, time_unit: "HOUR"}` computes
-`1000000 * 1000 * 3600` = 3.6e12 in `i32`: panic in a debug build, silent wraparound to a
-negative duration string like `"-1471228928s"` in release.
+**Trace.** A user writes a `NativeTrigger` with `initial_state: {"hwm": 187.40}` and a binding `'hwm' in context.state ? context.state['hwm'] : price` — the exact pattern the built-in translator itself generates (`mod.rs:66-71`). On the first evaluation `context.state` is `{}`, so the guard takes the else branch and the watermark seeds from the current price instead of the user's 187.40. The alert silently arms at the wrong level and nothing reports a problem. The API accepted the field without complaint.
 
-Related and lower-cost: `validate_alert_definition` accepts `interval = {nanos: 1}`, which
-passes `bot_loop.rs:40`'s `duration <= zero` check and gives you a near-tight evaluation loop
-hammering the market-data API.
-
-**Fix.** Validate the interval range at `src/server/mod.rs:692` (a sane floor of ~1s and a
-ceiling), use `checked_mul` / `TimeDelta::try_seconds` at both sites, and validate
-`lookback_bars`/`multiplier` as positive and bounded.
+**Fix.** Seed `states[i]` from `trigger.initial_state` when it is `None` in `evaluate_alert_definition`, or reject `initial_state` at `CreateAlert` until it's supported. Accepting and ignoring is the one option that produces wrong alerts.
 
 ---
 
-### F7 — One trigger's error abandons the rest, after mutating their state (HIGH · scoped)
-`src/alert/alert_engine.rs:180`
+### MEDIUM — Five more declared surfaces have no consumer
+`proto/poligun/ninniku/alert/alert.proto` · fix: scoped
 
-The `?` inside the loop makes a batch of independent items behave like a transaction — except
-it isn't one, because `states` has already been mutated in place for the triggers that ran
-before the failure. The results of those triggers are discarded.
+Each grep below is the full hit list across `src/` and `proto/`.
 
-```rust
-// src/alert/alert_engine.rs:177-187
-for (i, trigger_config) in definition.triggers.iter().enumerate() {
-    let state = states[i].as_ref();
-    let result =
-        evaluate_trigger_config(trigger_config, state, last_eval_time, market_data.clone())?;
-
-    if let Some(ref next) = result.next_state {
-        states[i] = Some(next.clone());
-    }
-```
-
-The contract says these are independent: *"One or more triggers evaluated on each tick. The
-alert fires when **any** trigger returns `TriggerResult{fired: true}`. **Each trigger maintains
-independent state** across evaluations."* (`alert.proto:223-226`).
-
-**Trace.** An alert with `[TrailingBelow(AAPL), RiseAbove(TSLA)]`. AAPL's trigger evaluates,
-fires, and writes `states[0] = {hwm: 250.0}`. TSLA's trigger calls `latest_trade("TSLA")`,
-which returns `Ok(None)` because no trade has arrived yet — and `alert_engine.rs:89-92` turns
-`Ok(None)` into an `ExecutionError`. The `?` at line 180 discards the entire `results` vec,
-`alert_bot.rs:81-84` logs and returns, and **AAPL's firing is thrown away while its water mark
-has already advanced**. With one illiquid symbol in the list, every trigger positioned after
-it never notifies, on every cycle, indefinitely. The user's only signal is an `error!` line.
-
-**Fix.** Collect per-trigger `Result`s instead of propagating: push an error marker into
-`results`, keep evaluating, and surface per-trigger failure somewhere a human sees it. Note
-"no data yet for this symbol" probably shouldn't be an error at all — see Q3.
-
----
-
-### F8 — Trailing water marks are lost on every restart (HIGH · scoped)
-`src/bot/alert_bot.rs:13` · `src/alert/mod.rs:68`
-
-`TriggerResult.next_state` is documented as *"State to **persist** and pass to the next
-evaluation"* (`alert.proto:20-21`). It is persisted only in process memory.
-
-```rust
-// src/bot/alert_bot.rs:13
-trigger_states: Mutex<Vec<Option<prost_types::Struct>>>,
-```
-
-`rg -n 'trigger_states|next_state' src/` returns 10 hits, all in `alert_bot.rs` and
-`alert/`; there is no Redis or Postgres write on that path. `BotMetadata` *is* persisted
-(`bot_metadata.rs`, base64 protobuf in Redis) and carries the `AlertDefinition`, but not the
-evaluated state. `resume_bots` reconstructs the bot via `create_bot_from_config` →
-`AlertBot::new(trigger_count)` → `vec![None; trigger_count]` (`alert_bot.rs:21`).
-
-**Trace.** A `TrailingBelow{price_offset: "5.00"}` on a stock that ran from 100 to 250 over a
-week has `state = {hwm: 250.0}` and is armed to fire at 245. The server is redeployed while
-the stock sits at 251. On restart the state is empty, so the CEL fallback
-`'hwm' in context.state ? context.state['hwm'] : price` (`mod.rs:68`) **re-seeds the high water
-mark from the current price** — 251 becomes the new peak, the trigger now fires at 246, and a
-week of tracked high is gone. The user is never told; a trailing stop that silently resets is
-worse than one that errors.
-
-**Fix.** Write `trigger_states` back into `BotMetadata` (or a sibling Redis key) after each
-cycle, keyed so it survives `resume_bots`. If in-memory-only is a deliberate v1 choice, the
-proto comment needs to stop saying "persist" — see Q4.
-
----
-
-### F9 — Positional trigger state survives a config change (HIGH · scoped)
-`src/alert/alert_engine.rs:171` · `src/bot/alert_bot.rs:63`
-
-State is correlated to triggers by list index, and the vector only ever grows. A config update
-replaces the trigger list while the state vector persists, silently rebinding one trigger's
-history to a different trigger.
-
-```rust
-// src/alert/alert_engine.rs:171-173 — grows, never shrinks, never clears
-while states.len() < definition.triggers.len() {
-    states.push(None);
-}
-```
-
-The update path is live: `UpdateBotConfig` → `BotEvent::ConfigUpdate` →
-`bot_loop.rs:56` → `context.update_bot_config(bot_config)`. That swaps the config inside
-`BotContext` but does **not** recreate the `Box<dyn Bot>` — `create_bot_from_config` is only
-called from `resume_bot` (`bot_manager.rs:241`). So the `AlertBot` instance, and its
-`trigger_states`, outlive the definition they were built for. (`UpdateAlert` itself returns
-`unimplemented`, so `UpdateBotConfig` on the alert's bot_id is the reachable path today.)
-
-**Trace.** An alert with `[TrailingAbove(AAPL), TrailingAbove(TSLA)]` accumulates
-`states = [{lwm: 180.0}, {lwm: 390.0}]`. The user removes the AAPL trigger, leaving
-`triggers = [TrailingAbove(TSLA)]`. `states` still has length 2 and is never truncated, so
-TSLA now reads `states[0] = {lwm: 180.0}`. `new_lwm = min_decimal(390.0, 180.0)` = **180**, and
-with a `price_offset` of `5.00` the trigger's threshold becomes `185` — **TSLA at 390 fires
-immediately and keeps firing**, because AAPL's low water mark is now TSLA's.
-
-**Fix.** Key the state by trigger identity rather than position, or clear `trigger_states` when
-the definition changes. The `AlertDefinition` has no per-trigger id today, so adding one is
-probably the cleaner half of the fix.
-
----
-
-### F10 — `NativeTrigger.initial_state` is declared and never read (HIGH · mechanical)
-`proto/poligun/ninniku/alert/alert.proto:53` · `src/alert/alert_engine.rs:27`
-
-```proto
-// alert.proto:51-53
-// Seed state for the very first evaluation, accessible as context.state["key"].
-// On subsequent evaluations, TriggerResult.next_state takes precedence.
-optional google.protobuf.Struct initial_state = 4;
-```
-
-`rg -n 'initial_state' src/` returns exactly one hit: `src/alert/mod.rs:160`, the line
-`initial_state: None` in a struct literal. `evaluate_native_trigger` takes `state` as a
-parameter and never touches `trigger.initial_state`:
-
-```rust
-// src/alert/alert_engine.rs:27
-let context_val = build_context_map(now, last_eval_time, state, &trigger.parameters);
-```
-
-And the first evaluation's `state` is unconditionally `None` — `vec![None; trigger_count]` at
-`alert_bot.rs:21`, topped up with `None` at `alert_bot.rs:63` and `alert_engine.rs:171`.
-
-**Trace.** A user writes a `NativeTrigger` implementing a trailing stop, sets
-`initial_state = {'hwm': 250.0}` to seed it from a position they already hold, and writes
-`prev_hwm = 'hwm' in context.state ? context.state['hwm'] : 0.0`. On the first evaluation
-`context.state` is `{}`, so `prev_hwm` is `0.0`, and `price <= 0.0 - offset` is never true —
-**the alert is dead on arrival and the field they set had no effect whatsoever.** This is the
-one place where a caller sets a value, is told it will do something, and gets silence.
-
-**Fix.** In `build_context_map`, fall back to `trigger.initial_state` when `state` is `None`.
-That's a one-line change and it makes the documented "on subsequent evaluations, `next_state`
-takes precedence" true.
-
----
-
-### F11 — Unvalidated strings are interpolated into the CEL source (HIGH · scoped)
-`src/alert/mod.rs:32` · `src/alert/mod.rs:168`
-
-Every `BuiltInTrigger` is compiled by building CEL *source text* with `format!`, and three
-request-controlled strings — `Decimal.value`, `symbol`, and `time_unit` — go in raw. A single
-quote in any of them changes the structure of the expression, not just a value in it.
-
-```rust
-// src/alert/mod.rs:32
-let expr = format!("{{'fired': price >= decimal('{}')}}", price.value);
-// src/alert/mod.rs:168
-Some(BaselineType::Ask(())) => format!("latest_quote('{}').ask", symbol),
-```
-
-`grep -rnE 'escape|sanitize|is_alphanumeric|is_ascii|replace\(' src/` → **zero matches**. The
-CEL grammar does support the escape (`cel-0.14.0/src/parser/gen/CEL.g4:193-202`; `\'` inside a
-single-quoted literal, with a passing test at `parse.rs:417`) — the host just never applies it.
-
-**Trace.** `RiseAbove.price.value` set to
-`0'), 'fired': true, 'next_state': {'hwm': 0.0}, 'x': decimal('0`
-produces the expression
-`{'fired': price >= decimal('0'), 'fired': true, 'next_state': {'hwm': 0.0}, 'x': decimal('0')}`.
-The one-key map becomes a four-key map; `parse_trigger_result` (`alert_engine.rs:274-294`)
-reads `fired` and `next_state` straight out of it, so the price comparison is bypassed
-entirely and attacker-chosen state is written into `trigger_states`. A less exotic version of
-the same bug: a symbol or decimal containing a stray `'` produces a CEL *compile* error, which
-`CreateAlert` doesn't catch (translation happens at eval time, `alert_engine.rs:156-158`), so
-the RPC returns success and the alert logs a compile failure every cycle forever.
-
-**Honest scoping, because it changes the severity.** This is **not** privilege escalation.
-`TriggerConfig` already offers `native_trigger`, whose `expression` and every `binding.expression`
-are compiled with zero validation (`alert_engine.rs:121-139`) — anyone who can inject through
-`Decimal.value` can already submit arbitrary CEL through the front door. The CEL sandbox has
-no file, network, or process primitives; the worst reachable side effect is calling
-`latest_quote`/`latest_trade` many times per cycle (each is a blocking `block_in_place`), which
-is a CPU/thread-pool concern rather than a data-exfiltration one. So I'm rating this as a
-correctness and defense-in-depth failure, not a breach.
-
-**Fix.** Escape both quote characters at every interpolation site (the `cel` crate supports
-`\'`), or better, validate `Decimal.value` by parsing it and re-emitting a canonical numeric
-literal, and constrain `symbol` to an allowlist character class. Given that `NativeTrigger`
-is the real trust boundary here, Q6 is the question that actually matters.
-
----
-
-### F12 — Four declared surfaces have no consumer (MEDIUM · scoped)
-`proto/poligun/ninniku/alert/alert.proto:238, 187, 212` · `src/postgres/bar.rs:200`
-
-Each of these is documented as having an effect, is settable by a caller, and does nothing.
-Grep results are from a repo-wide sweep excluding generated code under `target/`.
-
-| Declaration | Documented effect | Consumers in `src/` |
+| Declaration | Documented effect | Reality |
 |---|---|---|
-| `AlertDefinition.required_symbols` (`:238`) | "The engine subscribes to market data for these symbols once for the whole alert" | **none** — `rg -n 'subscribe\|Subscription' src/alert/ src/bot/alert_bot.rs` → 0 hits. Data is pulled per-evaluation inside CEL instead. |
-| `EvalSchedule.market_hours_filter` / `MarketHoursFilter.regular_hours` (`:187,:194`) | controls which sessions are active for evaluation | **none** — `rg -n 'market_hours\|regular_hours\|is_market_open\|session' src/` → 0 hits. Only `eval_schedule.interval` is ever read. |
-| `Sink.TelegramNotification.message_template` (`:213`) | "Binding names from the trigger are substituted as `{{name}}`" | read as a raw fallback string at `alert_bot.rs:99`; **no substitution exists** — `rg -n '\{\{' src/` → 6 hits, all Rust `format!` brace escapes. |
-| `Bar::get_highest_high` (`bar.rs:200`) | added in this branch | **none** — `rg -n 'get_highest_high' src/` → 1 hit, the definition. |
+| `market_hours_filter` / `MarketHoursFilter` / `regular_hours` (`alert.proto:187,192-193`) | *"If absent, the alert always evaluates (suitable for 24/7 assets)"* — implying presence restricts | Proto-only, zero Rust hits. `AlertBot` reads `eval_schedule.interval` and nothing else (`alert_bot.rs:50-58`). Every alert evaluates 24/7, which multiplies the dedup finding overnight and on weekends. |
+| `message_template` (`alert.proto:213`) | *"Binding names from the trigger are substituted as `{{name}}`. E.g. \"AAPL ask {{price}} crossed above {{threshold}}\""* | Read as a literal string at `alert_bot.rs:99`. `rg -i 'template\|substitut\|render' src/` returns that one line; `rg '\{\{' src/` returns only `format!` brace-escapes. A user's template arrives at the sink with `{{price}}` intact. |
+| `Alert` message (`alert.proto:242-245`) | *"Full alert record stored in `AlertBotParams`"* | Never constructed or read in Rust. `AlertBotParams` holds an `AlertDefinition` directly (`server/mod.rs:614`), and `alert_id` is the bot_id echoed back. |
+| `BotMetadata.can_trade` (`bot.proto:20`) | Persisted trading capability | Write-only. Written at `bot_manager.rs:147`; the one place that would read it deliberately re-derives instead — *"Re-derive `can_trade` from bot_config rather than trusting the stored field"* (`bot_manager.rs:116-117`). No reader in `src/` or `ninniku-fe`. |
+| `Bar::get_highest_high` (`src/postgres/bar.rs:200`) | — | Zero callers. Notably it is the exact query `reduce_bars` needs, and `reduce_bars` returns `f64::NAN` instead (`alert_engine.rs:100-118`). |
 
-**Trace.** A user creates a 24/7-safe alert with `market_hours_filter{regular_hours: true}`,
-reasonably expecting no pages outside 9:30–16:00 ET. The field is never read, so the bot
-evaluates every 30 seconds through the night; the moment the sink is wired up they get paged
-at 3 a.m. Separately, their `"AAPL ask {{price}} crossed {{threshold}}"` template is delivered
-with the literal braces in it.
+`pre_market` / `post_market` are *not* on this list — the proto marks them "Not yet implemented" (`alert.proto:191,195`), which is disclosure rather than a defect.
 
-`MarketHoursFilter.pre_market` / `post_market` are explicitly marked "Not yet implemented" and
-are *not* in this table — that's disclosure, not a defect. The three above claim to work.
-
-**Fix.** Either implement them or mark them not-yet-implemented in the proto the same way
-`pre_market` is. Right now the contract is making promises the server doesn't keep.
+**Fix.** Wire or delete. The `{{name}}` one is the most likely to reach a user as a visible defect, and the `get_highest_high` / `reduce_bars` pair looks like two halves of the same unfinished change that never met.
 
 ---
 
-### F13 — `last_eval_time` advances even when evaluation failed (MEDIUM · scoped)
-`src/bot/alert_bot.rs:76` · `src/alert/alert_engine.rs:210`
+### MEDIUM — Unvalidated wire numbers panic or wrap before any guard sees them
+`src/bot/alert_bot.rs:55-56` · fix: mechanical
 
-The low end of every `[last_eval_time, now]` window is advanced unconditionally, and the code
-comment says so on purpose.
-
-```rust
-// src/bot/alert_bot.rs:76-77
-// Update last_eval_time regardless of evaluation outcome
-*self.last_eval_time.lock().await = Some(Utc::now());
-```
-
-Three window problems compound here:
-
-1. **Advance-on-failure.** `bar`/`high`/`low` baselines query
-   `reduce_bars(…, context.last_eval_time, context.now, …)` (`mod.rs:172,177,182`). If a cycle
-   errors — which F7 makes easy, one bad symbol does it — the window it should have covered is
-   never re-examined, because `a` has already moved past it. A 5-minute bar whose close
-   crossed the threshold during the failed cycle is silently skipped forever.
-2. **A gap between windows.** `last_eval_time` is stamped *after* evaluation
-   (`alert_bot.rs:77`), while each trigger samples its own `now` at the *start* of its own
-   evaluation (`alert_engine.rs:23`). The interval between those two instants — the duration
-   of the blocking market-data calls, easily hundreds of milliseconds — falls outside both the
-   window that just closed and the one that opens next.
-3. **A zero-width first window.** On the very first evaluation `last_eval_time` is `None`, and
-   `build_context_map` substitutes `now`:
+`validate_alert_definition` checks that `eval_schedule.interval` is *present* and nothing else — not its sign, not its range (`src/server/mod.rs:692-696`). `d.seconds` is an `i64` straight off the wire:
 
 ```rust
-// src/alert/alert_engine.rs:210-212
-let last_eval_val = last_eval_time
-    .map(|t| Value::Timestamp(t.with_timezone(&utc_offset)))
-    .unwrap_or_else(|| Value::Timestamp(now.with_timezone(&utc_offset)));
+                chrono::Duration::seconds(d.seconds)
+                    + chrono::Duration::nanoseconds(d.nanos as i64)
 ```
 
-   so the first cycle asks for bars in `[now, now]` — an empty range that matches nothing, with
-   no indication that it's the degenerate case.
+chrono 0.4.45's `Duration::seconds` panics when the value is out of bounds. The same shape appears at `src/alert/mod.rs:212`, `lookback_bars * multiplier * unit_seconds` — three `i32`s, all client-supplied, all unvalidated.
 
-**Trace.** These are latent *today* only because `reduce_bars` is the NaN stub (F4) and returns
-the same answer for any window. The moment it's connected to `Bar::get_highest_high`, all three
-become live silent-data-loss bugs on the `bar`/`high`/`low` baselines.
+**Trace.** *(a)* `CreateAlert` with `interval: {seconds: 9_223_372_036_854_775}` passes validation, then panics inside `AlertBot::evaluate` on the first tick. The loop runs under a bare `tokio::spawn` with no `catch_unwind` (`src/tasks.rs:36`), so the task dies; Redis still says `Running`; `background_tasks` is an append-only `Vec` never consulted by bot_id (`tasks.rs:18`). The alert is permanently dead and reports healthy. *(b)* `interval: {seconds: 0}` yields a zero duration, which `bot_loop.rs:40-48` rejects with an `error!` and a hard-coded 5 s retry — forever, one error log every 5 s. `NoopBot` guards this exact case with `max(1, params.interval_seconds)` (`src/bot/bot.rs:98`); `AlertBot` doesn't. *(c)* `BreakoutAbove{lookback_bars: 1000, multiplier: 1000, time_unit: "HOUR"}` → `1000 * 1000 * 3600` = 3.6e9, past `i32::MAX`. In debug that panics (same dead-task outcome); in release it wraps to `-694967296` and emits `duration('-694967296s')`. This one is *not* latent behind the `reduce_bars` stub — `lookback_duration` runs during translation, before any CEL executes.
 
-**Fix.** Advance `last_eval_time` only on a successful cycle; carry the `now` used by the
-evaluation forward as the next window's start rather than re-sampling the clock; and make the
-first window explicit (one interval back, or a documented "no history yet" result).
+**Fix.** Bound `interval` in `validate_alert_definition` (positive, and something like ≤ 24 h), and compute the lookback in `i64` with a checked multiply that returns `TranslationError`.
 
 ---
 
-### F14 — `DeleteAlert` deletes non-alert bots, and `CreateAlert` can orphan metadata (MEDIUM · scoped)
-`src/server/mod.rs:643` · `src/server/mod.rs:617`
+### MEDIUM — The one-trading-bot-per-account rule is enforced only at create
+`src/bot/bot_manager.rs:154-180` · fix: scoped
 
-Two lifecycle gaps in the new RPCs, both cheap to close.
-
-```rust
-// src/server/mod.rs:643-656 — ownership is checked; bot *type* is not
-let metadata = self.bot_manager.get_bot_metadata(&request.alert_id).await…
-match &metadata.account_identifier {
-    Some(id) if id == &expected_identifier => {}
-    _ => return Err(Status::permission_denied("Alert does not belong to this account")),
-}
-self.bot_manager.delete_bot(&request.alert_id).await
-```
-
-`delete_alert` never checks that `bot_params` is `AlertBotParams`. Any `bot_id` on the same
-account is a valid `alert_id` as far as this handler is concerned — so a client that passes a
-trading bot's id to `DeleteAlert` deletes the trading bot. (F2 masks this while the target is
-running, which is the only reason it isn't worse.)
-
-Second: `create_alert` writes metadata and then starts the bot as two separate steps.
+`create_bot` re-derives `can_trade` and runs the uniqueness scan (`bot_manager.rs:113-137`). `update_bot_config` does neither — it rewrites the config and carries the rest of the metadata through unchanged:
 
 ```rust
-// src/server/mod.rs:617-627
-let bot_id = self.bot_manager.create_bot("alert", &account_target, bot_config).await
-    .map_err(|e| Status::internal(e.to_string()))?;
-self.bot_manager.start_bot(&bot_id).await
-    .map_err(|e| Status::internal(e.to_string()))?;
+        let new_metadata = BotMetadata {
+            bot_config: Some(bot_config.clone()),
+            ..metadata
+        };
 ```
 
-**Trace.** `create_bot` succeeds — `BotMetadata` is now in Redis with `status: Stopped` — and
-`start_bot` then fails (account resolution, `bot_context::BotContext::new`, or the broker
-constructor at `bot_context.rs:25`). The client gets `Status::internal` and **never learns the
-`alert_id`**. Nothing rolls the metadata back. `resume_bots` only resumes bots whose status is
-`Running` (`bot_manager.rs:219`), so the record sits in Redis forever: invisible to the user,
-never evaluated, and counted by any future listing.
+The comment on the invariant is at `bot.proto:18-19`: *"At most one trading bot may be registered per account; read-only bots (e.g. AlertBot) have no such limit."*
 
-**Fix.** Check `matches!(metadata.bot_config…, Some(BotParams::AlertBotParams(_)))` in
-`delete_alert` before deleting; delete the metadata on a `start_bot` failure in `create_alert`
-so the operation is all-or-nothing.
+**Trace.** Account A already runs trading bot B1. `CreateAlert` on account A creates AlertBot B2 — correctly allowed, since `bot_can_trade` returns false for `AlertBotParams` (`bot_manager.rs:285-287`). The client then calls `UpdateBotConfig(B2, NoopBotParams)`; `server/mod.rs:567-586` does no type check, `update_bot_config` runs no uniqueness scan, and account A now has two order-capable bots. The stored `can_trade` on B2 stays `false` (`..metadata`), so the persisted record also disagrees with the config — harmless only because nothing reads the field (see the dead-surface table).
+
+There is also a plain read-then-write race in `create_bot` itself: the scan reads at `:119` and the write lands at `:149` with no lock between, so two concurrent `create_bot` calls for one account both pass.
+
+**Fix.** Recompute `can_trade` in `update_bot_config` and re-run the uniqueness check when it flips to `true`. Rejecting `UpdateBotConfig` for alert bots outright would close it too, and is arguably right anyway given `UpdateAlert` is unimplemented.
+
+---
+
+### LOW — Leftover debug log fires for every trigger on every tick
+`src/bot/alert_bot.rs:90` · fix: mechanical · uncommitted
+
+```rust
+            info!("AlertBot: trigger {} fired — {}", i, result.fired);
+```
+
+This is the one uncommitted line in the branch (`git diff -- src/bot/alert_bot.rs`). It sits *above* the `if !result.fired { continue; }` guard, so it logs at `info` for triggers that did not fire, using the word "fired" for both outcomes. Line 106 then logs the same `"AlertBot: trigger {} fired"` prefix again for the ones that did.
+
+**Trace.** An alert with 4 triggers at a 5 s interval emits 2,880 `info` lines an hour, of which the useful ones — those from line 106 — are indistinguishable by prefix from the noise.
+
+**Fix.** Delete it, or move it below the guard and change the text so the two lines say different things.
 
 ---
 
 ## Questions I couldn't answer from the code
 
-These are the ones where I'd be guessing about intent, and each changes a verdict above.
+1. **Is a trigger meant to fire once on the crossing, or repeatedly while the condition holds?** This is the one that decides the shape of the CRITICAL fix. Edge-triggered costs a `fired` bit in `next_state` and no proto change; level-triggered-with-cooldown costs a new `EvalSchedule` field and persisted state that survives restarts. Everything downstream — whether restart re-notification is a bug or expected, whether `market_hours_filter` is a nice-to-have or load-bearing — follows from your answer.
 
-**Q1 — Should a firing be edge-triggered or level-triggered?** This is the single highest-value
-answer. If edge, F1 is a HIGH defect requiring persisted per-trigger firing state, and it
-interacts with F8 (state doesn't survive restarts, so an edge marker wouldn't either). If
-level, F1 drops to a MEDIUM doc fix and `RiseAbove`'s "rises above" wording should change.
-Nothing in the code decides this — the proto says both things in different places.
+2. **What was supposed to subscribe to `required_symbols`?** If the AlertBot is meant to register a subscription at start and drop it at delete, that's missing code and the alert feature does not work end-to-end today. If `latest_quote` is genuinely a fetch-on-demand call and no subscription is needed, then the proto comment at `alert.proto:233-235` is simply wrong and should be deleted — which would also make me downgrade that finding to LOW. I couldn't tell which from the code, because there is no subscription API on `MarketData` at all.
 
-**Q2 — Is `AlertDefinition` meant to be updatable at all?** `UpdateAlert` is `unimplemented`,
-but `UpdateBotConfig` reaches the same bot and does swap the definition live. If updates are
-in scope, F9 is a real HIGH and per-trigger identity needs designing now. If alerts are meant
-to be immutable — delete and recreate — then F9 is latent and the fix is to block
-`UpdateBotConfig` on alert bots instead.
+3. **Should `Decimal` be validated server-side, or is the "no validation" contract deliberate?** `well_known_types.proto:5-8` says the client is responsible for well-formed decimals. Taken at face value, `decimal() → 0.0` and the CEL interpolation are the contract working as written — which I don't believe, because the consequence is a silently inverted comparison. Either the contract line goes or the validation arrives; the current pairing is the worst of both.
 
-**Q3 — Is "no market data yet for this symbol" an error or a normal state?** `latest_quote`
-turns `Ok(None)` into an `ExecutionError` (`alert_engine.rs:63-66`). Combined with F7's `?`,
-one quiet symbol disables every trigger after it in the list. If it's normal, the fix is in the
-CEL function (return an absent/optional value) rather than in the loop.
+4. **Is `UpdateBotConfig` supposed to be reachable for alert bots?** `UpdateAlert` is deliberately `unimplemented`, but `UpdateBotConfig` accepts `AlertBotParams` with no type check. If alert bots should reject it, the positional-state finding becomes latent rather than live and drops a severity band; if it's the intended update path until `UpdateAlert` lands, it needs the state-invalidation fix now.
 
-**Q4 — Is in-memory-only trigger state a deliberate v1 scope cut?** If yes, F8 becomes a doc
-fix ("persist" is the wrong word in `alert.proto:20`) plus a decision about what a restart does
-to a trailing stop. If no, it's a HIGH and it should land before the sink is wired up, because
-that's when a silently-reset water mark starts costing money.
+5. **When `reduce_bars` is implemented, should a missing-data result be `NaN` or an error?** The stub picks `NaN` deliberately and the reasoning at `alert_engine.rs:114-115` is sound in isolation. But `latest_quote` picks the opposite convention for the same situation (`Ok(None) → Err`), and the batch-abort finding shows that convention has bad consequences. Two functions in one context disagreeing about what "no data" means will surprise expression authors.
 
-**Q5 — Should `CreateAlert` reject definitions it can't actually evaluate?** Today
-`BuiltInTrigger` translation happens at eval time, so an unparseable decimal, an unknown
-`time_unit`, or a `bar` baseline routed through the stub all return `Ok` from the RPC and fail
-silently forever afterward. Moving translation into `validate_alert_definition` would convert
-F3, F5, F4, and half of F11 from silent runtime wrongness into synchronous `400`s. That's a
-meaningful architectural change, which is why I'm asking rather than asserting it.
-
-**Q6 — Is the CEL sandbox intended to be the trust boundary?** `NativeTrigger` accepts
-arbitrary CEL from any caller by design, and my A7 sweep found no authentication interceptor
-on the tonic server (`src/main.rs:137-148`). If the server is only ever reachable on a trusted
-network, F11 is a robustness bug and nothing more. If it isn't, the interpolation is the
-smaller of two problems and the bigger one is out of scope for this review — worth a
-`/security-review` pass either way.
+6. **Is `f64` the intended arithmetic type for alert thresholds?** The comment at `src/alert/mod.rs:13-14` says state is stored as floats *"for direct CEL numeric comparison"*, so this reads deliberate — but `Decimal` exists in this repo specifically to represent prices *"without losing precision"*, and `to_f64().unwrap_or(0.0)` at `alert_engine.rs:55,59,85` converts away from `BigDecimal` at the boundary. For threshold comparison the error is almost certainly irrelevant; I'm asking because if it isn't, the fix is much cheaper now than after expressions exist in the wild. I did not file this as a finding.
 
 ---
 
 ## Proposed memory update
 
-Nothing has been written. This repo has no knowledge base at either location, so this would
-seed one. **Where do you want it?** `<repo>/.claude/knowledge/` means your teammates and CI
-agents get it and it shows up in PR diffs; `~/.claude/projects/-Users-yuhanzhao-GitHub-ninniku/knowledge/`
-keeps it local to you. The diff below assumes the repo location. Creating the directory is
-itself the record of the choice, so I'll only ask once.
+**Nothing was written.** No knowledge base exists at either location, and I'm not going to create one without your say-so:
 
-Note what is *not* in here: no `provenance: user` entries, because you haven't confirmed any
-intent yet — everything I'd otherwise assert about what this feature is *for* is parked in
-`## Open questions` with `asked: never`. Answer Q1–Q6 above and those become invariants with
-your words attached, which is the whole point of the exercise.
+```
+$ ls /Users/yuhanzhao/GitHub/ninniku/.claude/
+settings.local.json          # no knowledge/ subdirectory
+$ ls ~/.claude/projects/-Users-yuhanzhao-GitHub-ninniku/knowledge/
+No such file or directory
+```
+
+The choice of location is also yours and is made once, by which directory gets created: **`<repo>/.claude/knowledge/`** means teammates and CI agents share it and it shows up in PR diffs; **`~/.claude/projects/-Users-yuhanzhao-GitHub-ninniku/knowledge/`** means it never touches the repo but nobody else benefits. Below is the diff I'd apply, seeded only for the `alert` domain this review actually touched — I'm not backfilling the rest of the repo.
 
 ```diff
-diff --git a/dev/null b/.claude/knowledge/INDEX.md
-new file mode 100644
 --- /dev/null
 +++ b/.claude/knowledge/INDEX.md
-@@ -0,0 +1,22 @@
+@@
 +---
 +schema: knowledge/v1
 +repo: ninniku
-+updated: 2026-07-30
++updated: 2026-07-31
 +---
 +# Knowledge index
 +
@@ -640,185 +343,161 @@ new file mode 100644
 +
 +| path globs | domain | claims | last verified |
 +|---|---|---|---|
-+| `src/alert/**`, `src/bot/alert_bot.rs`, `proto/**/alert/**` | [alerting](domains/alerting.md) | 9 | 2026-07-30 @ b00b1d4 |
++| `src/alert/**`, `src/bot/alert_bot.rs`, `proto/poligun/ninniku/alert/**` | `domains/alert.md` | 6 | 2026-07-31 @ b00b1d4 |
 +
-+Findings: [alerting](review/findings/alerting.md) — 14 open, 0 fixed, 0 refuted
++Findings: `review/findings/alert.md` — 13 open, 0 fixed, 1 refuted
 +
 +## Repo-wide notes
-+- Bot metadata is persisted to Redis as base64-encoded protobuf (`src/bot/bot_metadata.rs`),
-+  not JSON — proto field removals are wire-breaking for existing records, additions are not.
-+- Background tasks (`src/tasks.rs`) are spawned and never restarted; a panicking task is
-+  logged only at shutdown. "This panics" therefore means "this component dies silently".
-+- `poligun.ninniku.Decimal` is a string with an explicit no-validation contract. Any code
-+  path that parses one is a fallback site worth auditing (see TAINT-alerting-001).
++- Bot state (`trigger_states`, `last_eval_time`) is in-memory only; Redis stores
++  `BotMetadata` but never per-evaluation state. Any "survives restart" question is
++  answered "no" unless the answer is in Redis.
++- `BotStatus` has exactly two values, `Running` and `Stopped`. There is no error state, so
++  "does anyone find out about this failure?" is nearly always "only a log line."
+```
 
-diff --git a/dev/null b/.claude/knowledge/domains/alerting.md
-new file mode 100644
+```diff
 --- /dev/null
-+++ b/.claude/knowledge/domains/alerting.md
-@@ -0,0 +1,96 @@
++++ b/.claude/knowledge/domains/alert.md
+@@
 +---
 +schema: knowledge/v1
-+domain: alerting
-+paths: ["src/alert/**", "src/bot/alert_bot.rs", "proto/**/alert/**"]
-+updated: 2026-07-30
++domain: alert
++paths: ["src/alert/**", "src/bot/alert_bot.rs", "proto/poligun/ninniku/alert/**"]
++updated: 2026-07-31
 +head: b00b1d4
 +---
-+# Alerting
++# Alert engine
 +
 +## Intent
-+Users define price alerts as a list of triggers evaluated on a shared schedule. Each alert
-+runs as its own read-only bot. `BuiltInTrigger`s are structured shorthand that is translated
-+into `NativeTrigger` CEL at evaluation time; `NativeTrigger` is raw caller-supplied CEL.
-+Per-trigger state round-trips through `TriggerResult.next_state`.
++Evaluates user-defined price triggers on a schedule. `BuiltInTrigger` (structured) is
++translated to `NativeTrigger` (CEL source) at evaluation time, then compiled and executed
++against a context of `{now, last_eval_time, state, parameters}`. One `AlertBot` per alert.
 +
 +## Lifecycle maps
 +
-+### MAP-alerting-001 — Alert lifecycle is the bot lifecycle, and delete requires Stopped
-+- kind: lifecycle
++### MAP-alert-001 — BuiltInTrigger is re-translated and re-compiled on every tick
++- kind: mechanism
 +- provenance: code
 +- status: active
-+- anchor: src/bot/bot_manager.rs:191 `Cannot delete a running bot`
-+- recorded: 2026-07-30 @ b00b1d4 (branch cel-alert)
-+- verify: `rg -n 'Cannot delete a running bot' src/bot/bot_manager.rs`
-+- claim: CreateAlert = create_bot (status Stopped) + start_bot; status becomes Running only
-+  after the async BotAckEvent::Started round-trip through bot_manager_loop. delete_bot
-+  refuses Running. The alert RPC surface has no stop operation; only the bot-level
-+  UpdateBotStatus can stop an alert, and it returns before the status actually flips.
-+- matters-because: any claim about alert deletion, or about a state an alert can be left in,
-+  has to be checked against this asymmetry rather than against delete_alert alone.
++- anchor: src/alert/alert_engine.rs:156 `Some(TriggerType::BuiltInTrigger(built_in)) =>`
++- recorded: 2026-07-31 @ b00b1d4 (branch cel-alert)
++- verify: `rg -n 'translate_built_in_trigger' src/alert/`
++- claim: `evaluate_trigger_config` clones the trigger and calls
++  `translate_built_in_trigger` on every evaluation; `Program::compile` then runs for each
++  binding plus the main expression. No caching. Any translation-time defect fires every
++  tick, and any malformed interpolation is a per-tick compile error, not a one-time one.
++- matters-because: makes translation-time panics (i32 overflow) and compile failures
++  recurring rather than create-time, which raises their severity.
 +
-+### MAP-alerting-002 — A config update swaps the definition but not the Bot instance
++### MAP-alert-002 — Config update keeps the Bot instance and its state
 +- kind: lifecycle
 +- provenance: code
 +- status: active
-+- anchor: src/bot/bot_loop.rs:56 `context.update_bot_config(bot_config)`
-+- recorded: 2026-07-30 @ b00b1d4 (branch cel-alert)
-+- verify: `rg -n 'create_bot_from_config' src/bot/`
-+- claim: BotEvent::ConfigUpdate replaces the BotConfig inside BotContext only.
-+  create_bot_from_config runs solely in resume_bot, so the AlertBot struct — and every field
-+  on it, including trigger_states and last_eval_time — outlives the definition it was built
-+  for. Any per-index or per-definition cache on a Bot is stale after an update.
-+- matters-because: turns "the trigger list is effectively immutable" into a false premise;
-+  it is the guard that would otherwise refute the positional-state finding.
++- anchor: src/bot/bot_loop.rs:57 `context.update_bot_config(bot_config).await`
++- recorded: 2026-07-31 @ b00b1d4 (branch cel-alert)
++- verify: `rg -n 'create_bot_from_config' src/`
++- claim: `BotEvent::ConfigUpdate` swaps only the `BotConfig` inside `BotContext`.
++  `create_bot_from_config` is never called again, so the same `Box<dyn Bot>` — and for
++  AlertBot the same positional `trigger_states` Vec and `last_eval_time` — survives an
++  arbitrary change to the trigger list. Only a full stop→start or a process restart
++  rebuilds it.
++- matters-because: turns every "can this collection be reordered?" question in the alert
++  domain from theoretical to live.
 +
 +## Invariants
 +
-+### INV-alerting-001 — The CEL result contract is a plain map, not a TriggerResult message
-+- kind: mechanism
-+- provenance: code
-+- status: active
-+- anchor: src/alert/alert_engine.rs:263 `fn parse_trigger_result`
-+- recorded: 2026-07-30 @ b00b1d4 (branch cel-alert)
-+- verify: `rg -n 'fn parse_trigger_result' -A 20 src/alert/alert_engine.rs`
-+- claim: the expression must evaluate to Value::Map; `fired` is read only if it is
-+  Value::Bool and defaults to false otherwise; `next_state` is read only if it is a Map and
-+  is otherwise dropped, leaving the previous state in place. Any other shape degrades to
-+  "did not fire" without an error.
-+- matters-because: silent-never-fires is the default failure mode of a malformed
-+  NativeTrigger, so "no notification" is never evidence that a trigger evaluated correctly.
-+
-+### INV-alerting-002 — proto doc for NativeTrigger contradicts the implementation
-+- kind: mechanism
++### INV-alert-003 — Per-trigger state is bound by list position, nothing else
++- kind: invariant
 +- provenance: doc
 +- status: active
-+- anchor: proto/poligun/ninniku/alert/alert.proto:41 `CEL expression returning TriggerResult`
-+- recorded: 2026-07-30 @ b00b1d4 (branch cel-alert)
-+- verify: `rg -n "TriggerResult\{" proto/poligun/ninniku/alert/alert.proto`
-+- claim: the proto's worked example constructs `TriggerResult{…}` and stores state as
-+  `string(new_hwm)`, while the implementation requires a plain map (INV-alerting-001) and
-+  the built-in translator stores floats (src/alert/mod.rs:13). Cite as "the contract claims",
-+  never as "the requirement is".
-+- matters-because: caps at MEDIUM any finding resting on the documented CEL contract.
++- anchor: src/bot/alert_bot.rs:12 `/// Per-trigger CEL state, indexed by trigger position`
++- recorded: 2026-07-31 @ b00b1d4 (branch cel-alert)
++- verify: `rg -n 'trigger_states' src/bot/alert_bot.rs`
++- claim: there is no trigger identifier anywhere in `TriggerConfig` or `AlertDefinition`.
++  Position is the only correlation key between a trigger and its persisted CEL state.
++- matters-because: any A9 finding here is confirmed by construction, not inferred.
 +
 +## Taint sources
 +
-+### TAINT-alerting-001 — Three request strings are interpolated into CEL source unescaped
++### TAINT-alert-004 — Client strings are formatted directly into CEL source
 +- kind: taint
 +- provenance: code
 +- status: active
-+- anchor: src/alert/mod.rs:32 `format!("{{'fired': price >= decimal('{}')}}"`
-+- recorded: 2026-07-30 @ b00b1d4 (branch cel-alert)
-+- verify: `rg -n "format!\(\"" src/alert/mod.rs`
-+- claim: BuiltInTrigger.symbol, Decimal.value, and BuiltInTrigger.*.time_unit reach ~17
-+  format! sites in src/alert/mod.rs with no escaping anywhere in the repo. A single quote
-+  restructures the expression. Bounded blast radius: the cel 0.14 stdlib has no file,
-+  network, or process primitives, and NativeTrigger already accepts arbitrary CEL from the
-+  same RPC — so this is defense-in-depth, not privilege escalation.
-+- matters-because: the second half of this claim is what keeps a future review from filing
-+  this as CRITICAL RCE; re-check it if NativeTrigger ever becomes privileged.
++- anchor: src/alert/mod.rs:32 `let expr = format!("{{'fired': price >= decimal('{}')}}"`
++- recorded: 2026-07-31 @ b00b1d4 (branch cel-alert)
++- verify: `rg -n "decimal\('\{\}'\)|latest_quote\('\{\}'\)" src/alert/mod.rs`
++- claim: `BuiltInTrigger.symbol` and every `Decimal.value` reach `Program::compile` by
++  string interpolation with no validation on the path. `Decimal`'s own contract
++  (proto/poligun/ninniku/well_known_types.proto:5-8) states the API performs no format
++  validation. Note the calibration: `NativeTrigger.expression` already accepts arbitrary
++  CEL from the same caller, so this is an integrity/availability issue, not privilege
++  escalation — don't re-report it as injection-to-RCE.
++- matters-because: sets the correct severity band for the next reviewer who finds it.
 +
 +## Absence claims
 +
-+### ABS-alerting-001 — No dedup, cooldown, or edge detection exists anywhere
++### ABS-alert-005 — No dedup, cooldown, or edge detection anywhere in the tree
 +- kind: absence
 +- provenance: code
 +- status: active
 +- anchor: src/bot/alert_bot.rs:89 `for (i, result) in results.iter().enumerate()`
-+- recorded: 2026-07-30 @ b00b1d4 (branch cel-alert)
-+- verify: `rg -n 'cooldown|debounce|throttle|dedup|idempot|already_fired|last_fired|last_sent' src/`
-+- claim: as of b00b1d4 the only hits are unrelated. Notification is unconditional on
-+  `fired`, once per trigger per cycle. Re-run the verify command every review; never trust
-+  this record.
-+- matters-because: it is the sole basis for the repeat-fire finding, which is therefore
-+  capped at MEDIUM if the verify command ever returns a real hit.
-+
-+### ABS-alerting-002 — Per-trigger CEL state is never persisted outside process memory
-+- kind: absence
-+- provenance: code
-+- status: active
-+- anchor: src/bot/alert_bot.rs:13 `trigger_states: Mutex<Vec<Option<prost_types::Struct>>>`
-+- recorded: 2026-07-30 @ b00b1d4 (branch cel-alert)
-+- verify: `rg -n 'trigger_states|next_state' src/ && rg -n 'redis' src/alert/ src/bot/alert_bot.rs`
-+- claim: trigger_states lives only on the AlertBot struct. No Redis or Postgres write on that
-+  path. resume_bots reconstructs it as vec![None; n].
-+- matters-because: every "does it survive a restart" question in this domain resolves to no.
-+
-+### ABS-alerting-003 — reduce_bars is a NaN stub, disabling more than breakouts
-+- kind: absence
-+- provenance: code
-+- status: active
-+- anchor: src/alert/alert_engine.rs:116 `f64::NAN`
-+- recorded: 2026-07-30 @ b00b1d4 (branch cel-alert)
-+- verify: `rg -n 'reduce_bars' src/alert/ && rg -n 'get_highest_high' src/`
-+- claim: reduce_bars returns NaN unconditionally. It backs BreakoutAbove/BreakoutBelow *and*
-+  the high, low, and bar baselines (src/alert/mod.rs:171-185), so 3 of 6 baseline types are
-+  silently non-functional for every trigger type. The in-file comment understates this.
-+  Bar::get_highest_high (src/postgres/bar.rs:200) is the intended replacement and has no
-+  caller.
-+- matters-because: while this holds, every window/boundary finding on bar-based baselines is
-+  latent rather than live. When it stops holding, they all go live at once.
++- recorded: 2026-07-31 @ b00b1d4 (branch cel-alert)
++- verify: `rg -i 'cooldown|debounce|throttle|dedup|idempot|last_fired|last_sent|seen' src/ proto/`
++- claim: notification is level-triggered with no suppression of any kind. Re-run the verify
++  command every time; a negative grep is the weakest kind of entry.
++- matters-because: the single highest-impact finding in this domain rests entirely on it.
 +
 +## Open questions
 +
-+### Q-alerting-001 — Is firing edge-triggered or level-triggered?
-+- proposed answer (inferred, unconfirmed): edge — "rises above" / "falls below" in
-+  alert.proto:117-163 is transition language, and TriggerResult.next_state exists to make
-+  edge tracking expressible.
-+- would change: severity of the repeat-fire finding (HIGH if edge, MEDIUM doc-fix if level),
-+  and whether RiseAbove/FallBelow need to emit next_state at all.
++### Q-alert-006 — Is firing meant to be edge-triggered or level-triggered with a cooldown?
++- proposed answer (inferred, unconfirmed): edge-triggered — `RiseAbove` is documented as
++  "Fires when price rises above", and `TriggerResult.next_state` already exists as a place
++  to carry a `fired` bit across evaluations.
++- would change: the fix for the CRITICAL repeat-fire finding (a `next_state` bit vs. a new
++  `EvalSchedule.cooldown` field plus persisted `last_notified_at`), and whether
++  re-notification after a process restart is a bug.
 +- asked: never
 +
-+### Q-alerting-002 — Is an AlertDefinition meant to be updatable in place?
-+- proposed answer (inferred, unconfirmed): yes — UpdateAlert is declared in ninniku.proto,
-+  and UpdateBotConfig already reaches an alert bot's definition today.
-+- would change: whether positional trigger_states is a live HIGH or a latent design finding,
-+  and whether triggers need stable ids.
-+- asked: never
-+
-+### Q-alerting-003 — Should CreateAlert reject definitions it cannot evaluate?
-+- proposed answer (inferred, unconfirmed): yes — translating BuiltInTriggers at create time
-+  rather than eval time would convert several silent runtime failures into synchronous
-+  InvalidArgument responses.
-+- would change: severity of the decimal-fallback, time_unit-fallthrough, and stubbed-baseline
-+  findings — all drop substantially if the RPC rejects them up front.
++### Q-alert-007 — What is supposed to subscribe to `required_symbols`?
++- proposed answer (inferred, unconfirmed): the AlertBot should subscribe at start and
++  unsubscribe at delete; the `MarketData` trait is missing the method to do it.
++- would change: severity of the `required_symbols` finding — HIGH if a subscription is
++  genuinely required for `latest_quote` to return data, LOW (a stale proto comment) if
++  `latest_quote` fetches on demand.
 +- asked: never
 ```
 
-I'd also propose seeding `.claude/knowledge/review/findings/alerting.md` with the 14 findings
-above as `FND-alerting-001..014` in the `## Open` section, so the next review references them
-instead of re-deriving them. I've left that out of the diff to keep it readable — say the word
-and I'll include it.
+```diff
+--- /dev/null
++++ b/.claude/knowledge/review/findings/alert.md
+@@
++# Alert — findings ledger
++
++## Open
++[13 FND entries corresponding to the findings above, each with severity, angle, anchor,
++trace, and fix clarity. Omitted from this preview for length — they are a mechanical
++transcription of the report's findings section.]
++
++## Fixed
++(none)
++
++## Won't fix
++(none)
++
++## Refuted (graveyard)
++
++### REF-alert-001 — "The reduce_bars NaN sentinel permanently poisons the trailing watermark"
++- reason_class: wrong-model
++- scope: this-site-only
++- re_raised: 1
++- refuted: 2026-07-31 @ b00b1d4
++- reasoning: Rust's `f64::max` returns the *other* operand when one side is NaN, so
++  `max_decimal(real_price, NaN)` yields `real_price`. A NaN watermark recovers on the first
++  evaluation that produces a real price rather than persisting. The correct model: NaN
++  *freezes* the watermark while it is present; it does not poison it.
++- guard_anchor: src/alert/alert_engine.rs:39 `ctx.add_function("max_decimal", |a: f64, b: f64| -> f64 { a.max(b) });`
++- void_if: `max_decimal` stops delegating to `f64::max`, OR trigger state starts being
++  serialized to JSON (protobuf JSON has no NaN representation for `google.protobuf.Value`).
+```
 
-Say which location you want (or "skip") and I'll write it. If you'd rather not have this in
-the repo at all, that's fine — I won't re-ask this session.
+Say the word and which location you want, and I'll write it. Declining is fine — it costs future reviews a lookup, nothing in this one.

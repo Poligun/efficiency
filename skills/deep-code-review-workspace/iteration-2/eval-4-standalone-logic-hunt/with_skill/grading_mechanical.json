@@ -1,0 +1,31 @@
+{
+  "report": "iteration-2/eval-4-standalone-logic-hunt/with_skill/outputs/report.md",
+  "chars": 41685,
+  "S2_anchors_exist": {
+    "anchors_checked": 44,
+    "anchors_valid": 44,
+    "exempt": [],
+    "nonexistent_paths": [],
+    "line_out_of_range": [],
+    "passed": true
+  },
+  "S5_finding_count": {
+    "count": 15,
+    "cap": 15,
+    "passed": true
+  },
+  "S1_labels_present": {
+    "severity_mentions": 20,
+    "fix_clarity_mentions": 15,
+    "findings": 15,
+    "passed": true
+  },
+  "S4_coverage_section": {
+    "passed": true
+  },
+  "S7_worktree_clean": {
+    "passed": true,
+    "current": "M Cargo.lock\n M Cargo.toml\n M src/bot/alert_bot.rs",
+    "baseline": "M Cargo.lock\n M Cargo.toml\n M src/bot/alert_bot.rs"
+  }
+}

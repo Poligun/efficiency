@@ -53,6 +53,17 @@ fields — but no Jira adapter ships until a live instance exists to test
 against. Rejected: hardcoding `gh` and refactoring later; building the Jira
 adapter blind.
 
+**PR template asked, consolidated, never imposed.** (2026-08-21, post-review)
+An existing template is the repo's own convention: consolidation keeps its
+sections and adds only the linkage header, deployed on approval; declining
+leaves it untouched. Absent one, the bootstrap asks whether to create it — a
+repo may legitimately run PRs without a template, and the vocabulary doc and
+seam file adapt to either answer via `{{pr_template_bullet}}` /
+`{{pr_template_note}}`. The linkage conventions themselves stay imposed core —
+only the file is optional. Rejected: unconditional creation (the original
+deploy-table shape) and the hardcoded `../.github/…` href that assumed both
+the template's existence and the vocabulary doc's depth.
+
 **Stock labels deleted, existing issues migrated guided-only.** (Q11)
 Deletion of the nine stock labels was validated on scarlet. Type/status calls
 on existing issues are judgment — propose per issue, batch-apply on approval,

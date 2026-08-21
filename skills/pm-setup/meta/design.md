@@ -62,10 +62,12 @@ proves round-tripping).
 ## The tiered interview
 
 Impose the universal core (type/priority/status/resolution, palette,
-invariants, state machines, PR conventions); ask exactly two questions — the
-`area/*` set (proposed from repo structure) and the doc layout (defaulting to
-scarlet's). Deviations the user requests are recorded in the generated ADR
-rather than blocked. This sits between "impose everything" (breaks on repos
+invariants, state machines, PR conventions); ask at most three questions — the
+`area/*` set (proposed from repo structure), the doc layout (defaulting to
+scarlet's), and the PR template (consolidate with an existing one, create, or
+skip — the linkage conventions are core, the template *file* is optional).
+Deviations the user requests are recorded in the generated ADR rather than
+blocked. This sits between "impose everything" (breaks on repos
 with existing doc conventions) and "interview everything" (a 20-question slog
 that defeats easy transfer).
 

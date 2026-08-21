@@ -1,6 +1,8 @@
 <!-- pm-setup template: the tracker seam file, GitHub backend.
      Placeholders: {{repo}} {{vocabulary_doc}} {{vocabulary_doc_href}}
-     {{area_list}} {{doc_decisions}} {{doc_research}} {{doc_plans}}.
+     {{area_list}} {{doc_decisions}} {{doc_research}} {{doc_plans}}
+     {{pr_template_note}} — the last is one sentence naming the repo's PR
+     template path, or stating there is none.
      {{vocabulary_doc}} is the repo-root path (display); {{vocabulary_doc_href}}
      is the same file relative to THIS file's location (.claude/), so links
      resolve — e.g. docs/issues.md displays as-is but links as
@@ -157,7 +159,7 @@ exemption) live in the vocabulary doc's "PR conventions" section — one source.
 The GitHub mechanics behind them: only the close/fix/resolve keywords create a
 closing Development link, and **any** Development link (keyword or sidebar)
 closes the issue on merge — so never sidebar-link a partial PR; `Part of #N`
-stays a plain mention. The shape is `.github/PULL_REQUEST_TEMPLATE.md`.
+stays a plain mention. {{pr_template_note}}
 
 ## Transition constraints
 

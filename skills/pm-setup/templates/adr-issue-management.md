@@ -1,6 +1,6 @@
 <!-- pm-setup template. Placeholders: {{number}} {{date}} {{repo}} {{area_list}}
-     {{doc_layout}} {{vocabulary_doc}} {{vocabulary_doc_href}} {{deviations}}
-     {{migration_note}}. {{vocabulary_doc}} is the repo-root path (display);
+     {{doc_layout}} {{pr_template_answer}} {{vocabulary_doc}}
+     {{vocabulary_doc_href}} {{deviations}} {{migration_note}}. {{vocabulary_doc}} is the repo-root path (display);
      {{vocabulary_doc_href}} is relative to this ADR's deployed location
      (e.g. ../issues.md from docs/decisions/). Delete this comment when
      deploying. -->
@@ -31,6 +31,7 @@ sync obligation to the template or to other repos that adopted it.
 
 - **Areas**: {{area_list}}
 - **Doc layout**: {{doc_layout}}
+- **PR template**: {{pr_template_answer}}
 
 ### Deviations from the template
 

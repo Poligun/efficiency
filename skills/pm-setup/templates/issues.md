@@ -1,8 +1,11 @@
 <!-- pm-setup template. Placeholders: {{adr_link}} {{adr_number}} {{area_rows}}
      {{area_growth_note}} {{doc_research}} {{doc_decisions}} {{doc_plans}}
-     {{doc_vocabulary}} {{tracker_href}} {{extra_sections}}. Href placeholders
-     are relative to THIS file's deployed location so links resolve.
-     Delete this comment when deploying. -->
+     {{doc_vocabulary}} {{tracker_href}} {{pr_template_bullet}}
+     {{extra_sections}}. Href placeholders are relative to THIS file's deployed
+     location so links resolve. {{pr_template_bullet}} is a full list bullet:
+     either a link to whatever PR template the repo ended up with, or a
+     statement that no template exists and the convention lines above are the
+     whole shape. Delete this comment when deploying. -->
 # Issues and PRs
 
 The working reference for [ADR {{adr_number}}]({{adr_link}}). If the two disagree,
@@ -232,8 +235,7 @@ entries — land in `{{doc_research}}`, `{{doc_decisions}}`, `{{doc_plans}}` and
   the issue on merge. So never sidebar-link a partial PR; only the PR that
   finishes the issue gets `Closes #N` or a manual link.
 - Trivial fixes (typo, comment, formatting) may skip both.
-- The shape is in
-  [.github/PULL_REQUEST_TEMPLATE.md](../.github/PULL_REQUEST_TEMPLATE.md).
+{{pr_template_bullet}}
 
 ## Useful queries
 

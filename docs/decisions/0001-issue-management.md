@@ -35,6 +35,9 @@ first consumer, and this bootstrap doubled as the skill's acceptance test.
   `CONTEXT.md` for vocabulary. All were created by this bootstrap; the
   per-skill `meta/` directories continue to hold skill-local design records,
   with the new directories owning only cross-skill material.
+- **PR template**: created new at `.github/PULL_REQUEST_TEMPLATE.md` — the
+  repo had none. (Filed before the interview gained its PR-template question;
+  kept deliberately, as this repo's PRs already use it.)
 
 ### Deviations from the template
 

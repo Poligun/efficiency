@@ -31,7 +31,7 @@ between repos. Drift is deliberate: each repo's adoption ADR records *its* answe
 - The Material palette, the invariants, the state machines, the PR linkage
   conventions, and the "issues are thin pointers" principle.
 
-**Asked (the tiered interview — exactly two questions):**
+**Asked (the tiered interview — at most three questions):**
 
 1. **Areas** — the `area/*` labels. Propose a set derived from the repo's actual
    structure (top-level modules, existing docs); the user edits or approves. Zero or
@@ -41,6 +41,17 @@ between repos. Drift is deliberate: each repo's adoption ADR records *its* answe
    vocabulary). Create only the directories the answer names; the vocabulary doc's
    pointers use whatever paths the user chose. If the repo already has a doc
    convention, adopt it rather than imposing the default.
+3. **PR template** — never imposed. If discovery found one (any location GitHub
+   reads), propose a consolidation: keep the repo's own sections and add only the
+   linkage header (the `Closes #N` first line and its comment) at the top; show
+   the merged result and deploy it only on approval — declining leaves the file
+   untouched. If the repo has none, ask whether to create one from the template.
+   Either way the vocabulary doc's PR-conventions section adapts: its
+   `{{pr_template_bullet}}` links whatever template ends up existing, or states
+   that no template exists and the convention lines are the whole shape (the seam
+   file's `{{pr_template_note}}` says the same). The linkage conventions
+   themselves are part of the imposed core — only the template *file* is
+   optional.
 
 Any deviation the user requests beyond these two questions is fine — record it in the
 generated adoption ADR under its own heading. The ADR is the record of what this repo
@@ -63,14 +74,18 @@ Collect before asking anything:
 
 - `gh label list` — existing labels, stock or custom.
 - `gh issue list --state all --limit 200` — existing issues needing migration.
-- Presence of `.github/PULL_REQUEST_TEMPLATE.md`, `AGENTS.md` (or `CLAUDE.md`),
-  existing `docs/` layout, existing ADR numbering (next free number).
+- A PR template in any location GitHub reads: `.github/PULL_REQUEST_TEMPLATE.md`,
+  `PULL_REQUEST_TEMPLATE.md` at the root, `docs/PULL_REQUEST_TEMPLATE.md` (each
+  case-insensitively), or the multi-template `.github/PULL_REQUEST_TEMPLATE/`
+  directory.
+- Presence of `AGENTS.md` (or `CLAUDE.md`), existing `docs/` layout, existing ADR
+  numbering (next free number).
 - Installed lifecycle skills: look for `to-spec` and `to-tickets` in
   `~/.claude/skills/`, `.agents/skills/`, `~/.agents/skills/`, `.claude/skills/`.
 
 ### 3. Run the interview
 
-The two questions above, in one round, with proposals pre-filled from discovery.
+The questions above, in one round, with proposals pre-filled from discovery.
 
 ### 4. Deploy
 
@@ -86,7 +101,7 @@ e.g. `docs/issues.md` displays as-is but links as `../docs/issues.md` from
 | Labels | palette table in [templates/issues.md](templates/issues.md) | `gh label create` for all families; skip ones that already exist with the right color |
 | `docs/issues.md` | [templates/issues.md](templates/issues.md) | the vocabulary doc, path per doc-layout answer |
 | Adoption ADR | [templates/adr-issue-management.md](templates/adr-issue-management.md) | next free ADR number; records interview answers + deviations |
-| `.github/PULL_REQUEST_TEMPLATE.md` | [templates/PULL_REQUEST_TEMPLATE.md](templates/PULL_REQUEST_TEMPLATE.md) | if one exists, merge — keep the repo's sections, add the linkage header |
+| PR template | [templates/PULL_REQUEST_TEMPLATE.md](templates/PULL_REQUEST_TEMPLATE.md) | per the PR-template answer: consolidate with the existing one (its sections kept, linkage header added), create anew, or skip entirely |
 | `AGENTS.md` section | [templates/agents-md-section.md](templates/agents-md-section.md) | append to existing AGENTS.md (or CLAUDE.md if that is the repo's convention); create AGENTS.md if neither exists |
 | `.claude/tracker.md` | [templates/tracker.github.md](templates/tracker.github.md) | the seam file — see below |
 

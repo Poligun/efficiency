@@ -1,14 +1,10 @@
 # Vocabulary
 
 Cross-skill domain vocabulary for this repo. Per-skill glossaries live in
-`skills/<name>/meta/glossary.md`; a term moves here when a second skill starts
-using it.
+`skills/<name>/meta/glossary.md`; a term is listed here when a second skill
+starts using it, and points at its one defining glossary rather than restating
+it.
 
-- **Seam file** — `.claude/tracker.md`: the generated, backend-specific
-  statement of how to perform issue-tracker operations. Skills consume
-  operations by name; backends supply implementations.
-- **Standing rule** — an invariant expected to drift on the happy path and
-  repaired after the fact (resolution backfill, epic close); `/project-manager`
-  audits them.
-- **Graduation** — an idea becoming an epic by rewriting the same issue in
-  place, so one URL carries the history from thought to shipped.
+- **Seam file**, **standing rule**, **graduation**, **operation vocabulary** —
+  shared by the pm skills; defined in
+  [skills/pm-setup/meta/glossary.md](skills/pm-setup/meta/glossary.md).

@@ -75,7 +75,11 @@ The two questions above, in one round, with proposals pre-filled from discovery.
 ### 4. Deploy
 
 Generate each file from its template, substituting the interview answers. Templates
-use `{{placeholder}}` markers; fill them, never leave one behind.
+use `{{placeholder}}` markers; fill them, never leave one behind. Placeholders
+ending in `_href` take paths **relative to the generated file's own location**
+(so links resolve when rendered); their display twins take the repo-root path —
+e.g. `docs/issues.md` displays as-is but links as `../docs/issues.md` from
+`.claude/tracker.md` and `../issues.md` from `docs/decisions/`.
 
 | Deploy | From | Notes |
 | --- | --- | --- |
@@ -121,6 +125,9 @@ the gap is and move on — nothing else blocks on them.
 
 - Every label family present with the palette colors; superseded labels gone.
 - Every generated file free of `{{` markers.
+- Every relative link in every generated file resolves to an existing file,
+  checked **from that file's own directory** — marker absence alone cannot
+  catch a dead link left by a wrong `_href` value.
 - AGENTS.md points at the vocabulary doc.
 - Report what was deployed, what was skipped, and any deviation recorded in the ADR.
 

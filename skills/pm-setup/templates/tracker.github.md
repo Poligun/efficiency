@@ -1,6 +1,10 @@
 <!-- pm-setup template: the tracker seam file, GitHub backend.
-     Placeholders: {{repo}} {{vocabulary_doc}} {{area_list}} {{doc_decisions}}
-     {{doc_research}} {{doc_plans}}. Delete this comment when deploying.
+     Placeholders: {{repo}} {{vocabulary_doc}} {{vocabulary_doc_href}}
+     {{area_list}} {{doc_decisions}} {{doc_research}} {{doc_plans}}.
+     {{vocabulary_doc}} is the repo-root path (display); {{vocabulary_doc_href}}
+     is the same file relative to THIS file's location (.claude/), so links
+     resolve — e.g. docs/issues.md displays as-is but links as
+     ../docs/issues.md. Delete this comment when deploying.
 
      Contract for any backend implementation of this file: keep the section
      headings and operation names EXACTLY as they are here — consuming skills
@@ -13,14 +17,14 @@
 How to operate this repository's issue tracker. Any skill that files, labels,
 links, queries or closes issues reads this file first and follows it — never a
 hardcoded notion of the tracker. The vocabulary itself (label semantics, state
-machines, invariants) lives in [{{vocabulary_doc}}]({{vocabulary_doc}}); this
-file is about *how to perform the operations*.
+machines, invariants) lives in [{{vocabulary_doc}}]({{vocabulary_doc_href}});
+this file is about *how to perform the operations*.
 
 ## Identity
 
 - Backend: GitHub (`gh` CLI)
 - Repository: `{{repo}}`
-- Vocabulary doc: [{{vocabulary_doc}}]({{vocabulary_doc}})
+- Vocabulary doc: [{{vocabulary_doc}}]({{vocabulary_doc_href}})
 - Areas: {{area_list}}
 
 ## Vocabulary mapping
@@ -55,12 +59,16 @@ Idea graduation rewrites the same issue in place — one URL carries the history
 
 ```sh
 gh issue edit <n> --body-file <spec> --title "[Epic] <title>" \
-  --remove-label type/idea --add-label type/epic,status/needs-tickets,P<n>
+  --remove-label type/idea --remove-label "status/<old>" \
+  --add-label type/epic,status/needs-tickets,P<n>
 ```
 
-Keep the original idea as a concise section of the new body. Create new issues
-only when one idea splits into several epics; then close the idea
-`resolution/done` with links to its children.
+`status/<old>` is whatever status the idea carried (usually
+`status/needs-spec`) — removing it keeps the exactly-one-status invariant;
+graduation swaps both the type and the status, never stacks them. Keep the
+original idea as a concise section of the new body. Create new issues only
+when one idea splits into several epics; then close the idea `resolution/done`
+with links to its children.
 
 ### transition-status
 
@@ -88,13 +96,20 @@ merges, or the `/project-manager` audit).
 ### link-parent
 
 Tasks are native sub-issues of their epic. `gh` has no subcommand for this; use
-the GraphQL API:
+the GraphQL API. Write:
 
 ```sh
 # issue node IDs:
 gh api graphql -f query='{repository(owner:"<owner>",name:"<name>"){issue(number:<n>){id}}}'
 # link child to parent:
 gh api graphql -f query='mutation{addSubIssue(input:{issueId:"<parent-id>",subIssueId:"<child-id>"}){issue{number}}}'
+```
+
+Read (an epic's progress and its task list):
+
+```sh
+gh api graphql -f query='{repository(owner:"<owner>",name:"<name>"){issue(number:<n>){subIssuesSummary{total completed}}}}'
+gh api graphql -f query='{repository(owner:"<owner>",name:"<name>"){issue(number:<n>){subIssues(first:100){nodes{number title state}}}}}'
 ```
 
 A task has at most one parent; standalone tasks are fine; epics do not nest.
@@ -104,30 +119,45 @@ task also closes the epic with `resolution/done` (audited by
 
 ### link-blocker
 
-A native dependency edge where available (issue sidebar "Relationships"), or a
-`Blocked by: #N` line at the top of the body. Blocked is not a status label.
+Write: a `Blocked by: #N` line at the top of the issue body (the sidebar
+"Relationships" edge works too, but the body line is the form every consumer
+can read). Read: `gh issue view <n> --json body` and look for the
+`Blocked by:` line — treat the body line as the machine-readable source of
+truth for blockedness. Blocked is not a status label.
 
 ### find-work
 
+`gh issue list` defaults to 30 results and truncates silently — **always pass
+`-L` comfortably above the repo's issue count** (200 here; raise it as the
+tracker grows).
+
 ```sh
-gh issue list -l status/ready                 # pick up and execute now
-gh issue list -l status/needs-spec            # the grilling/spec queue
-gh issue list -l status/backlog               # captured, not committed
-gh issue list --search 'label:P0,P1'          # urgent (comma is OR; -l is AND)
-gh issue list -l type/epic -l status/in-flight
+gh issue list -L 200 -l status/ready                 # pick up and execute now
+gh issue list -L 200 -l status/needs-spec            # the grilling/spec queue
+gh issue list -L 200 -l status/needs-tickets         # specs awaiting breakdown
+gh issue list -L 200 -l status/backlog               # captured, not committed
+gh issue list -L 200 --search 'label:P0,P1'          # urgent (comma is OR; -l is AND)
+gh issue list -L 200 -l type/epic -l status/in-flight
+gh issue list -L 200 -s closed -l resolution/wont-do # what we decided against
 ```
 
-Audit queries (closed-without-resolution and invariant checks) are in the
-vocabulary doc's "Useful queries" section.
+Audit queries:
+
+```sh
+# closed issues missing a resolution (the backfill queue):
+gh issue list -L 500 --search 'is:closed is:issue -label:resolution/done -label:resolution/wont-do -label:resolution/obsolete -label:resolution/duplicate -label:resolution/cannot-reproduce'
+# full invariant audit: fetch everything once, check locally:
+gh issue list -s all -L 500 --json number,title,state,stateReason,labels
+```
 
 ### pr-linkage
 
-- PR title: `[#N] component: summary`.
-- PR body first line: `Closes #N` (only on the PR that finishes the issue —
-  any Development link closes on merge) or `Part of #N` (plain mention, never
-  sidebar-linked) for partial work.
-- Trivial fixes (typo, comment, formatting) are exempt.
-- Shape: `.github/PULL_REQUEST_TEMPLATE.md`.
+The conventions themselves (title prefix, first-line linkage, trivial-fix
+exemption) live in the vocabulary doc's "PR conventions" section — one source.
+The GitHub mechanics behind them: only the close/fix/resolve keywords create a
+closing Development link, and **any** Development link (keyword or sidebar)
+closes the issue on merge — so never sidebar-link a partial PR; `Part of #N`
+stays a plain mention. The shape is `.github/PULL_REQUEST_TEMPLATE.md`.
 
 ## Transition constraints
 

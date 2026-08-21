@@ -1,6 +1,9 @@
 <!-- pm-setup template. Placeholders: {{number}} {{date}} {{repo}} {{area_list}}
-     {{doc_layout}} {{vocabulary_doc}} {{deviations}} {{migration_note}}.
-     Delete this comment when deploying. -->
+     {{doc_layout}} {{vocabulary_doc}} {{vocabulary_doc_href}} {{deviations}}
+     {{migration_note}}. {{vocabulary_doc}} is the repo-root path (display);
+     {{vocabulary_doc_href}} is relative to this ADR's deployed location
+     (e.g. ../issues.md from docs/decisions/). Delete this comment when
+     deploying. -->
 # {{number}}. Issue management: adopting the pm-setup taxonomy
 
 Status: accepted
@@ -19,7 +22,7 @@ The taxonomy originates in scarlet's ADR 0015, where the rationale for each
 piece is argued in full (why no severity scale, why kanban states are not
 labels, why the native close reasons are derived). This ADR records what *this*
 repo answered during bootstrap; the deployed copy of the vocabulary lives in
-[{{vocabulary_doc}}]({{vocabulary_doc}}) and is owned by this repo — there is no
+[{{vocabulary_doc}}]({{vocabulary_doc_href}}) and is owned by this repo — there is no
 sync obligation to the template or to other repos that adopted it.
 
 ## Decisions
@@ -39,8 +42,8 @@ sync obligation to the template or to other repos that adopted it.
 
 ## Consequences
 
-- [{{vocabulary_doc}}]({{vocabulary_doc}}) is the operative reference; AGENTS.md
-  points at it, so every agent session loads the vocabulary.
+- [{{vocabulary_doc}}]({{vocabulary_doc_href}}) is the operative reference;
+  AGENTS.md points at it, so every agent session loads the vocabulary.
 - `.claude/tracker.md` is the seam consuming skills read to operate the
   tracker; spec/ticket skills follow its "For lifecycle skills" section instead
   of their generic defaults.

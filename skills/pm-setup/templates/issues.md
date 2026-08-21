@@ -1,6 +1,8 @@
 <!-- pm-setup template. Placeholders: {{adr_link}} {{adr_number}} {{area_rows}}
      {{area_growth_note}} {{doc_research}} {{doc_decisions}} {{doc_plans}}
-     {{doc_vocabulary}} {{extra_sections}}. Delete this comment when deploying. -->
+     {{doc_vocabulary}} {{tracker_href}} {{extra_sections}}. Href placeholders
+     are relative to THIS file's deployed location so links resolve.
+     Delete this comment when deploying. -->
 # Issues and PRs
 
 The working reference for [ADR {{adr_number}}]({{adr_link}}). If the two disagree,
@@ -90,7 +92,8 @@ merger, or by the `/project-manager` audit).
 
 Material Design tokens: one color per family for area, status and
 resolution; blue shades per label for type; a heat ramp for priority.
-Re-theming is an edit here plus a `gh label edit` pass. `type/bug` is the
+Re-theming is an edit here plus a relabel pass through the tracker (see the
+seam file). `type/bug` is the
 one deliberate exception to type's blue family: bug-is-red is muscle
 memory worth keeping.
 
@@ -234,14 +237,14 @@ entries — land in `{{doc_research}}`, `{{doc_decisions}}`, `{{doc_plans}}` and
 
 ## Useful queries
 
-```sh
-gh issue list -l status/needs-spec            # what to grill next
-gh issue list -l status/ready                 # what an agent can pick up now
-gh issue list -l status/backlog               # captured, not yet committed (ideas, unconfirmed bugs)
-gh issue list --search 'label:P0,P1'          # what actually matters now (comma is OR in search; -l is AND)
-gh issue list -l type/epic -l status/in-flight  # epics with work underway
-gh issue list -s closed -l resolution/wont-do   # what we decided against
-gh issue list --search 'is:closed is:issue -label:resolution/done -label:resolution/wont-do -label:resolution/obsolete -label:resolution/duplicate -label:resolution/cannot-reproduce'
-                                              # closed issues missing a resolution (audit)
-```
+The concrete commands live in the tracker seam file
+([.claude/tracker.md]({{tracker_href}}), find-work section) — this doc stays
+backend-neutral. The queries that matter, whatever the backend:
+
+- What to grill next (`status/needs-spec`), what awaits breakdown
+  (`status/needs-tickets`), what's ready to pick up (`status/ready`), what's
+  captured but uncommitted (`status/backlog`).
+- What actually matters now (open `P0`/`P1`); epics with work underway.
+- What we decided against (closed `resolution/wont-do`).
+- Audit: closed issues carrying no `resolution/*` (the backfill queue).
 {{extra_sections}}

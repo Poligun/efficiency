@@ -16,7 +16,11 @@ through the grilling → spec flow.
 Read `.claude/tracker.md` first — every tracker operation below is performed the
 way that file says, never from memory. If it does not exist, stop: this repo is
 not bootstrapped; point the user at `/pm-setup`. Read the vocabulary doc the
-seam file names for the invariants and label semantics.
+seam file names for the invariants and label semantics — the **deployed doc and
+the repo's adoption ADR are authoritative**: audit what they declare, honoring
+any recorded deviations. The checks listed below are the universal core's
+default shape, not a second source of truth; where a repo's doc deviates, its
+doc wins and this list yields.
 
 ## Mode selection
 
@@ -72,8 +76,13 @@ suggestion, not a triage decision.
 
 - Never create, reprioritize, or graduate issues.
 - Never close anything except the two standing rules above, confirmed.
-- Never flip a `status/*` label — status changes are deliberate human
-  decisions made elsewhere.
-- Batch `gh` calls where possible; the audit should not take a hundred round
-  trips on a fifty-issue tracker (fetch all issues with labels in one query,
-  check locally).
+- Never **transition** a `status/*` label from one lifecycle state to another —
+  those are deliberate human decisions made elsewhere. Repairing a label-count
+  violation is different: removing the stale extra status a bad graduation
+  left stacked (keeping the current one) is repair, goes through the same
+  confirmed batch as every fix, and is squarely this skill's job.
+- Batch tracker calls where possible; the audit should not take a hundred
+  round trips on a fifty-issue tracker. Fetch all issues with labels in one
+  query and check locally, always passing an explicit result limit comfortably
+  above the repo's issue count — CLI defaults truncate silently, and a
+  truncated audit reads as a clean one.

@@ -4,7 +4,8 @@ Read [docs/issues.md](docs/issues.md) before filing, labeling or closing an
 issue, and before opening a PR. It is the working reference for
 [ADR 1](docs/decisions/0001-issue-management.md); the ADR wins if they
 disagree. The tracker operations themselves (commands, linking, queries) are in
-[.claude/tracker.md](.claude/tracker.md). The short version:
+[.claude/tracker.md](.claude/tracker.md). The short version — a summary only;
+where it and the doc disagree, the doc wins:
 
 - Five slash-named label families: `type/` (epic, task, bug, idea), bare
   `P0`–`P3` (default `P2`), `area/`, `status/`, `resolution/`.

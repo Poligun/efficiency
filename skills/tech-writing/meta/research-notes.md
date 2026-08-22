@@ -47,7 +47,10 @@ HTML / UI-element / formatting-minutiae families.
 
 ## 3. Golden-set source material (per banned pattern)
 
-P1 anthropomorphism — SOURCED pairs from Google style guide ("A Delimiter object tells the
+Pattern labels are GP1-GP6 (golden pattern); they are a separate namespace from the corpus
+rule IDs, which use the D/P/S/W families defined in references/voice.md.
+
+GP1 anthropomorphism — SOURCED pairs from Google style guide ("A Delimiter object tells the
 splitter…"→"specifies where to split"; "The PC sees"→"detects"), IBM verb blocklist (ask, decide,
 expect, say, see, think, want), Hyperlint Vale rule (lintable verb list: remembers→stores,
 thinks→detects, refuses→fails to, assumes→uses). Constructed: "speaks PostgreSQL"→"implements
@@ -55,22 +58,22 @@ the PostgreSQL wire protocol"; "compiler complains"→"reports a warning".
 NEAR-MISS COUNTER-FIXTURE (must NOT flag): appropriate machine actions — "the service reads the
 config file", "the program searches".
 
-P2 staccato/fragments — SOURCED choppy-revision pairs (McMurrey shock-absorber pairs, Purdue OWL).
+GP2 staccato/fragments — SOURCED choppy-revision pairs (McMurrey shock-absorber pairs, Purdue OWL).
 Constructed em-dash-chain fixture ("Retries are configured per client — not per request.
 Important distinction. Miss it, and…"). COUNTER-FIXTURE: Google's own short-complete-sentence
 example (Fortran/Lisp passage) — short ≠ staccato; completeness is the test.
 
-P3 question headers — SOURCED: Wikipedia MOS "Headings should not be phrased as questions"
+GP3 question headers — SOURCED: Wikipedia MOS "Headings should not be phrased as questions"
 ("What languages are spoken in Mexico?"→"Languages"). Google prescribes the positive form
 (bare-infinitive tasks, noun phrases) but never addresses questions. CAUTION: plainlanguage.gov
 and Microsoft endorse question headings for citizen/consumer audiences — encode as house rule
 for professional audiences, and use those counter-positions as near-miss eval distractors.
 
-P4 hype/forced analogies — SOURCED: Google jargon page (blast radius→affected area, ingest→
+GP4 hype/forced analogies — SOURCED: Google jargon page (blast radius→affected area, ingest→
 import), word list (leverage, just, simply, easy), TW-One "screamingly fast"→"225-250% faster".
 Constructed: "Consistency Fabric is like a group chat…"→plain read-your-writes explanation.
 
-P5 ChatGPT house style — SOURCED tell inventory (Wikipedia "Signs of AI writing"): negative
+GP5 ChatGPT house style — SOURCED tell inventory (Wikipedia "Signs of AI writing"): negative
 parallelism ("not just X, it's Y"), AI vocabulary (delve, tapestry, testament, underscore,
 pivotal, landscape, intricate, fostering, boasts, meticulously, crucial), copula avoidance
 ("serves as"/"stands as" for "is"), puffery, vague attribution, boldface/emoji/em-dash overuse,
@@ -78,7 +81,7 @@ rule-of-three compulsion. Bad-snippet seeds from ignorance.ai "Field Guide to AI
 deadlanguagesociety rhetoric analysis, elliestoolbox. Constructed composite technical passage
 (caching example) assembling the tells.
 
-P6 subject continuity (positive) — VERBATIM Williams (Style 1995, pp. 80-133, extracted from
+GP6 subject continuity (positive) — VERBATIM Williams (Style 1995, pp. 80-133, extracted from
 OCR PDF): "Readers need familiar information at the beginnings of sentences"; "A cohesive
 paragraph has consistent topic strings"; "we introduce new themes not anywhere in a sentence,
 but rather as close to its end as we can manage" (stress position); summary figure: TOPIC =

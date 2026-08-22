@@ -67,7 +67,9 @@ GP3 question headers — SOURCED: Wikipedia MOS "Headings should not be phrased 
 ("What languages are spoken in Mexico?"→"Languages"). Google prescribes the positive form
 (bare-infinitive tasks, noun phrases) but never addresses questions. CAUTION: plainlanguage.gov
 and Microsoft endorse question headings for citizen/consumer audiences — encode as house rule
-for professional audiences, and use those counter-positions as near-miss eval distractors.
+for professional audiences. (Resolved with issue #7: the counter-positions became the
+temptation fixture — question headings stay flagged even when a document cites them; the
+near misses that must not be flagged are prose questions and noun-phrase headings.)
 
 GP4 hype/forced analogies — SOURCED: Google jargon page (blast radius→affected area, ingest→
 import), word list (leverage, just, simply, easy), TW-One "screamingly fast"→"225-250% faster".

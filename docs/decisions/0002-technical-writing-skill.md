@@ -1,6 +1,6 @@
 # 2. Technical writing skill: one skill, one merged voice
 
-Status: accepted
+Status: accepted (amended, see Amendments)
 Date: 2026-08-21
 
 Decided in a grilling session (three rounds, two research passes). Work tracked under epic #5;
@@ -84,7 +84,9 @@ per house rule — serve as review-mode eval fixtures and as the in-corpus examp
 examples (Google exercises, published critiques of LLM style, Williams) preferred over
 constructed ones. v1 evals cover review mode only: golden pairs plus near-miss distractors that
 must NOT be flagged (appropriate machine actions like "the service reads the config file"; short
-but complete sentences; question headers that other style traditions endorse). Deterministic
+but complete sentences; questions in running prose; noun-phrase headings such as "Frequently
+asked questions"). A document's citation of a competing tradition (plainlanguage.gov, Microsoft)
+is not an exemption: headings phrased as questions are still flagged. Deterministic
 checks (anthropomorphic-verb list, AI-vocabulary list, digest-to-corpus traceability) run beside
 LLM judging. Write-mode evals are a recorded v2 item.
 
@@ -116,3 +118,11 @@ Each mined rule is filtered for condescension pressure (see previous decision).
 - The digest becomes ambient context for every session in scope; its size is a standing cost and
   is deliberately capped.
 - Attribution obligations (CC BY 4.0) travel with the corpus if it is ever extracted from this repo.
+
+## Amendments
+
+- 2026-08-22 (issue #7): the eval-distractor list originally named question headings endorsed
+  by other traditions as must-not-flag, contradicting the house question-heading ban the corpus
+  carries as merge M4 and rule D2 (references/voice.md). The list now names the true near
+  misses (prose questions, noun-phrase headings), and the citing-a-competing-tradition case is
+  encoded as a temptation fixture the reviewer must still flag.

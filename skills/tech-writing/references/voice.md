@@ -67,7 +67,8 @@ copy.
 - *What can I deploy with this?* → *Supported deployment targets*
 
 Wikipedia's Manual of Style states the same ban. Consumer-facing style guides endorse
-question headings for lay audiences; that context does not apply here (M4).
+question headings for lay audiences; that context does not apply here (M4), and a reviewed
+document's own citation of such a guide is not an exemption: the finding stands.
 
 ### D3: Conversational register is permitted; condescension is not
 Source: [house], [devstyle/tone]; merge M6. Check: judgment.

@@ -40,7 +40,10 @@ which each exclusion would be revisited. Provenance for the underlying research 
   checking the book's cohesion chapter; its point is independently supported by the
   extracted text and encoded in P1/S5.
 - **Question-heading counter-positions** (plainlanguage.gov, Microsoft) are rejected by
-  merge M4 but preserved as near-miss eval distractors for issue #7.
+  merge M4 and locked in by evals/fixtures/question-headers-consumer-cited.md (eval 3): a
+  document citing those traditions still has its question headings flagged. Revisit only if
+  the skill is ever pointed at consumer-facing documentation, together with the M6
+  exclusion above.
 - **Digest cost** (ADR 2 watch item). The open question is whether the always-on digest's
   token cost or constraint pressure degrades agent thinking. Observations land here or in
   a sibling meta note once the digest (issue #9) is installed.

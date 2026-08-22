@@ -1,0 +1,154 @@
+{
+  "skill_name": "tech-writing",
+  "notes": "Review-mode evals only; write-mode evals are a v2 item tracked in meta/IMPROVEMENTS.md. Ground truth is references/golden-pairs.md; the fixtures in evals/fixtures/ compose those pairs into whole documents. Evals 1-3 exercise the review mode that issue #8's SKILL.md will define; until it lands, run them by loading the three reference files and asking for a review against the corpus. Eval 4 is the deterministic layer (scripts/prose_checks.py, stdlib-only). The digest traceability check reports 'skipped' until issue #9 ships references/digest.md; once it exists the check must report 'ok'. Output-shape assertions (verdict paragraph, VIOLATION/JUDGMENT tiers, no severity ladder) come from ADR 2.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "composite-violation-review",
+      "prompt": "Review skills/tech-writing/evals/fixtures/composite-caching-service.md against the house voice and report findings.",
+      "cwd": "/Users/yuhanzhao/GitHub/efficiency",
+      "branch": "",
+      "expected_output": "A report opening with a verdict paragraph, then findings in two tiers (VIOLATION with rule ID, quoted passage, and proposed rewrite; JUDGMENT flagged with reasoning), ending with a coverage line. No severity ladder, no silent rewrite of the fixture.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "T1",
+          "text": "Opens with a verdict paragraph before any findings"
+        },
+        {
+          "id": "T2",
+          "text": "Flags both question headings as D2 violations"
+        },
+        {
+          "id": "T3",
+          "text": "Flags anthropomorphism (remembers/refuses/complains/speaks/thinks) as S2, quoting at least one passage and proposing a mechanism-naming rewrite"
+        },
+        {
+          "id": "T4",
+          "text": "Flags the fragment chain 'Fast. Predictable. Zero config.' as S1/P2 staccato"
+        },
+        {
+          "id": "T5",
+          "text": "Flags hype: the 'screamingly fast' claim and the group-chat analogy under W1"
+        },
+        {
+          "id": "T6",
+          "text": "Flags assistant-prose tells: the negative parallelism ('isn't just a cache') under S4 and/or the vocabulary (pivotal, boasts, meticulously, crucial) under W2"
+        },
+        {
+          "id": "T7",
+          "text": "Flags condescension ('Simply enable it', 'really easy', 'you just need to') under D3"
+        },
+        {
+          "id": "T8",
+          "text": "Flags the non-parallel bullet list under P7 (mixed verb/sentence/phrase items)"
+        },
+        {
+          "id": "T9",
+          "text": "Every VIOLATION finding cites a corpus rule ID and quotes the offending passage"
+        },
+        {
+          "id": "T10",
+          "text": "Findings are tiered VIOLATION vs JUDGMENT with no severity ladder"
+        },
+        {
+          "id": "T11",
+          "text": "Ends with a coverage line and does not modify the fixture file"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "near-miss-no-false-positives",
+      "prompt": "Review skills/tech-writing/evals/fixtures/near-miss-clean.md against the house voice and report findings.",
+      "cwd": "/Users/yuhanzhao/GitHub/efficiency",
+      "branch": "",
+      "expected_output": "A verdict paragraph reporting a compliant document, with zero VIOLATION findings. Every planted near miss is left unflagged; at most JUDGMENT notes appear.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "N1",
+          "text": "Reports zero VIOLATION findings"
+        },
+        {
+          "id": "N2",
+          "text": "Does not flag literal machine actions (reads the config file, searches the retry table, listens on port 8080) as S2"
+        },
+        {
+          "id": "N3",
+          "text": "Does not flag the short complete sentences (Fortran/Lisp passage) as staccato"
+        },
+        {
+          "id": "N4",
+          "text": "Does not flag the noun-phrase heading 'Frequently asked questions' as D2"
+        },
+        {
+          "id": "N5",
+          "text": "Does not flag the question in running prose ('Which backoff should you choose?') as D2"
+        },
+        {
+          "id": "N6",
+          "text": "Does not flag the topic-preserving passive ('Each policy is held in a red-black tree') as S5"
+        },
+        {
+          "id": "N7",
+          "text": "Does not flag the noun-phrase list items (max_attempts/base_delay/jitter) as S1 fragments"
+        },
+        {
+          "id": "N8",
+          "text": "If the S2 lexical candidates ('It assumes you have read', 'Frequently asked questions') are mentioned at all, they are judged compliant, not violations"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "question-header-temptation",
+      "prompt": "Review skills/tech-writing/evals/fixtures/question-headers-consumer-cited.md against the house voice and report findings.",
+      "cwd": "/Users/yuhanzhao/GitHub/efficiency",
+      "branch": "",
+      "expected_output": "All three question headings flagged as D2 violations with statement or noun-phrase rewrites, despite the document's citation of consumer-facing style traditions. The merge M4 resolution is binding; the citation is not an exemption.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "Q1",
+          "text": "Flags all three question headings as D2 violations with proposed rewrites"
+        },
+        {
+          "id": "Q2",
+          "text": "Does not accept the plainlanguage.gov/Microsoft citation as an exemption, and grounds the finding in D2/M4's professional-audience scope"
+        },
+        {
+          "id": "Q3",
+          "text": "Does not flag the body prose, which is compliant"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "deterministic-layer",
+      "prompt": "Run the deterministic checks: python3 skills/tech-writing/scripts/test_prose_checks.py, then scan both fixtures and run the digest check with skills/tech-writing/scripts/prose_checks.py.",
+      "cwd": "/Users/yuhanzhao/GitHub/efficiency",
+      "branch": "",
+      "expected_output": "Unit tests pass. The composite fixture scan exits 1 with S2 and W2 candidates; the near-miss fixture scan exits 1 with exactly the two known candidates; the digest check reports 'skipped' until issue #9 lands, then 'ok'.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "L1",
+          "text": "test_prose_checks.py passes (all tests OK)"
+        },
+        {
+          "id": "L2",
+          "text": "Scanning composite-caching-service.md yields at least 15 candidates including remembers, refuses, speaks (S2) and pivotal, boasts, meticulously (W2)"
+        },
+        {
+          "id": "L3",
+          "text": "Scanning near-miss-clean.md yields exactly two candidates ('assumes' line 4, 'asked' line 24), demonstrating the candidates-vs-verdict split"
+        },
+        {
+          "id": "L4",
+          "text": "The digest subcommand reports status 'skipped' while references/digest.md is absent, and 'ok' once it exists"
+        }
+      ]
+    }
+  ]
+}

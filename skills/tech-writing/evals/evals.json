@@ -1,6 +1,6 @@
 {
   "skill_name": "tech-writing",
-  "notes": "Review-mode evals only; write-mode evals are a v2 item tracked in meta/IMPROVEMENTS.md. Ground truth is references/golden-pairs.md; the fixtures in evals/fixtures/ compose those pairs into whole documents. Evals 1-3 exercise the review mode defined in SKILL.md (issue #8). When running them, withhold golden-pairs.md from context: it carries the fixtures' planted passages and expected rule IDs, so loading it lets the model pass by lookup instead of rule application; suppress SKILL.md's consult-on-boundary step for the run. Eval 4 is the deterministic layer (scripts/prose_checks.py, stdlib-only). The digest traceability check reports 'skipped' until issue #9 ships references/digest.md; once it exists the check must report 'ok'. Output-shape assertions (verdict paragraph, VIOLATION/JUDGMENT tiers, no severity ladder) come from ADR 2.",
+  "notes": "Review-mode evals only; write-mode evals are a v2 item tracked in meta/IMPROVEMENTS.md. Ground truth is references/golden-pairs.md; the fixtures in evals/fixtures/ compose those pairs into whole documents. Evals 1-3 exercise the review mode defined in SKILL.md (issue #8) and carry a per-eval ground-truth-holdout note. Eval 4 is the deterministic layer (scripts/prose_checks.py, stdlib-only); with references/digest.md shipped (issue #9), its digest check must report 'ok'. Output-shape assertions (verdict paragraph, VIOLATION/JUDGMENT tiers, no severity ladder) come from ADR 2. On a machine without the skill installed, run evals 1-3 by loading SKILL.md plus voice.md, clarity.md, and structure.md directly; scripts/install.sh is the normal path.",
   "evals": [
     {
       "id": 1,
@@ -55,6 +55,10 @@
           "id": "T11",
           "text": "Ends with a coverage line and does not modify the fixture file"
         }
+      ],
+      "notes": "withhold_files is the ground-truth holdout: golden-pairs.md carries this fixture's planted passages and expected rule IDs, so the harness must keep it out of context (denylist or temporary rename) without mentioning it in the prompt.",
+      "withhold_files": [
+        "skills/tech-writing/references/golden-pairs.md"
       ]
     },
     {
@@ -98,6 +102,10 @@
           "id": "N8",
           "text": "If the S2 lexical candidates ('It assumes you have read', 'Frequently asked questions') are mentioned at all, they are judged compliant, not violations"
         }
+      ],
+      "notes": "withhold_files is the ground-truth holdout: golden-pairs.md carries this fixture's planted passages and expected rule IDs, so the harness must keep it out of context (denylist or temporary rename) without mentioning it in the prompt.",
+      "withhold_files": [
+        "skills/tech-writing/references/golden-pairs.md"
       ]
     },
     {
@@ -121,12 +129,16 @@
           "id": "Q3",
           "text": "Does not flag the body prose, which is compliant"
         }
+      ],
+      "notes": "withhold_files is the ground-truth holdout: golden-pairs.md carries this fixture's planted passages and expected rule IDs, so the harness must keep it out of context (denylist or temporary rename) without mentioning it in the prompt.",
+      "withhold_files": [
+        "skills/tech-writing/references/golden-pairs.md"
       ]
     },
     {
       "id": 4,
       "name": "deterministic-layer",
-      "prompt": "Run the deterministic checks: python3 skills/tech-writing/scripts/test_prose_checks.py, then scan both fixtures and run the digest check with skills/tech-writing/scripts/prose_checks.py.",
+      "prompt": "Run the deterministic checks: python3 skills/tech-writing/scripts/test_prose_checks.py and test_install.py, then scan evals/fixtures/composite-caching-service.md and near-miss-clean.md and run the digest check with skills/tech-writing/scripts/prose_checks.py.",
       "cwd": "/Users/yuhanzhao/GitHub/efficiency",
       "branch": "",
       "expected_output": "Unit tests pass. The composite fixture scan exits 1 with S2 and W2 candidates; the near-miss fixture scan exits 1 with exactly the two known candidates; the digest check reports 'skipped' until issue #9 lands, then 'ok'.",

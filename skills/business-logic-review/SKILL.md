@@ -198,7 +198,9 @@ merges your findings with other agents' and the vocabularies have to match.
 
 Both output shapes are in `references/output-contract.md`. Subagent mode returns JSON;
 human mode returns markdown with the findings, then two closing sections — the questions
-you couldn't answer from the code, and the proposed memory diff.
+you couldn't answer from the code, and the proposed memory diff. Human-mode prose follows
+the house voice, whose rules the installed tech-writing digest carries; the output
+contract's mandated shapes stay as specified.
 
 Write findings with a trace, not a category:
 

@@ -7,6 +7,10 @@ description: Builds and refreshes an AI-readable knowledge base for a repository
 
 You're writing down what an agent would otherwise have to rediscover on every task: how
 this repo is laid out, what patterns it actually follows, and where the domains are.
+The prose passages in the knowledge files (the architecture map, domain intent
+paragraphs) are human-facing; invoke the tech-writing skill once per run and hold the
+house voice across them. Schema-governed content (INDEX.md's table, conventions ledger
+entries) keeps its mandated format.
 
 ## What you're doing and why
 

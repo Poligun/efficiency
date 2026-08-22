@@ -13,6 +13,10 @@ This file holds recorded-but-deferred improvements, per the layout the review sk
 - **Scanner subject-awareness.** scripts/prose_checks.py flags anthropomorphic verbs
   lexically, so human subjects ("the integrator asks") produce candidates. If candidate
   noise becomes a problem in practice, add a subject heuristic before the verb match.
+- **Sidecar-to-frontmatter sync.** agents/openai.yaml hand-restates a compressed form of
+  SKILL.md's description with no check tying them together, unlike the digest's
+  traceability. If the description is retuned and the sidecar drifts, add a deterministic
+  check (or generate the sidecar) rather than syncing by hand again.
 - **Consult-path eval coverage.** Evals 1-3 withhold golden-pairs.md as the ground-truth
   holdout, so the suite never tests whether consulting it at a boundary changes a
   verdict. A v2 eval with a non-fixture document would close that gap; extending

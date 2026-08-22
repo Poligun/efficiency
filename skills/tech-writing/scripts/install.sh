@@ -51,6 +51,19 @@ link_skill() {
   fi
   ln -sfn "$SKILL_DIR" "$link"
   echo "linked $link -> $SKILL_DIR"
+
+  # The cross-harness tree: sidecars in agents/ are read from ~/.agents/skills,
+  # so link there too when that tree exists on this machine.
+  local agents_tree="$HOME/.agents/skills"
+  if [[ -d "$agents_tree" ]]; then
+    local agents_link="$agents_tree/tech-writing"
+    if [[ -e "$agents_link" && ! -L "$agents_link" ]]; then
+      echo "error: $agents_link exists and is not a symlink; move it aside first (tech-writing)" >&2
+      exit 1
+    fi
+    ln -sfn "$SKILL_DIR" "$agents_link"
+    echo "linked $agents_link -> $SKILL_DIR"
+  fi
 }
 
 write_block() {

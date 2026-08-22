@@ -1,0 +1,5 @@
+interface:
+  display_name: "Tech Writing"
+  short_description: "Draft and review prose in the house voice"
+policy:
+  allow_implicit_invocation: true

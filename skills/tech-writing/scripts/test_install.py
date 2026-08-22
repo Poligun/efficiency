@@ -97,6 +97,21 @@ class TestGlobalInstall(unittest.TestCase):
         self.assertLess(content.index("keep me"), content.index(MARK_OPEN))
         self.assertEqual(content.count(MARK_OPEN), 1)
 
+    def test_links_into_agents_tree_when_present(self):
+        agents = os.path.join(self.home, ".agents", "skills")
+        os.makedirs(agents)
+        proc = run_install(self.home)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        link = os.path.join(agents, "tech-writing")
+        self.assertTrue(os.path.islink(link))
+        self.assertEqual(os.path.realpath(link), os.path.realpath(SKILL_DIR))
+
+    def test_skips_agents_tree_when_absent(self):
+        proc = run_install(self.home)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertFalse(
+            os.path.exists(os.path.join(self.home, ".agents")))
+
     def test_aborts_when_real_directory_occupies_link_path(self):
         os.makedirs(self.link)
         proc = run_install(self.home)

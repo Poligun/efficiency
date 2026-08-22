@@ -16,6 +16,12 @@ The taxonomy originates in scarlet's ADR 0015. The templates in
 generated copies outright — there is **no sync obligation** back to this skill or
 between repos. Drift is deliberate: each repo's adoption ADR records *its* answers.
 
+Prose you author or adapt beyond the template boilerplate (the adoption ADR's
+context and decisions, interview summaries, filled template slots) is
+human-facing: invoke the tech-writing skill once per run and hold its rules
+for all of it. The same rules govern edits to the template masters in
+[templates/](templates/).
+
 ## What is imposed vs. asked
 
 **Imposed (the universal core — never interviewed):**

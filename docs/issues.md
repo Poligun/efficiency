@@ -50,6 +50,7 @@ severity scale (ADR 1).
 | `area/pm` | Project-management skills: pm-setup, project-manager |
 | `area/evals` | Benchmarks, eval fixtures, workspace infra |
 | `area/docs` | Meta docs, README, repo knowledge |
+| `area/writing` | Technical writing skill and house-voice enforcement |
 
 The set grows when a new skill cluster appears.
 

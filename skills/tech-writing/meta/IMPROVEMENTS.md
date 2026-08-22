@@ -13,3 +13,8 @@ This file holds recorded-but-deferred improvements, per the layout the review sk
 - **Scanner subject-awareness.** scripts/prose_checks.py flags anthropomorphic verbs
   lexically, so human subjects ("the integrator asks") produce candidates. If candidate
   noise becomes a problem in practice, add a subject heuristic before the verb match.
+- **Consult-path eval coverage.** Evals 1-3 withhold golden-pairs.md as the ground-truth
+  holdout, so the suite never tests whether consulting it at a boundary changes a
+  verdict. A v2 eval with a non-fixture document would close that gap; extending
+  skills/check_contamination.py to the tech-writing fixtures would mechanically catch
+  answer-key leaks into SKILL.md.

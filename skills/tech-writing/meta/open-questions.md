@@ -45,5 +45,5 @@ which each exclusion would be revisited. Provenance for the underlying research 
   the skill is ever pointed at consumer-facing documentation, together with the M6
   exclusion above.
 - **Digest cost** (ADR 2 watch item). The open question is whether the always-on digest's
-  token cost or constraint pressure degrades agent thinking. Observations land here or in
-  a sibling meta note once the digest (issue #9) is installed.
+  token cost or constraint pressure degrades agent thinking. Observations land in
+  [observations.md](observations.md), created with the digest work (issue #9).

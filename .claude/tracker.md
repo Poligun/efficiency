@@ -11,7 +11,7 @@ this file is about *how to perform the operations*.
 - Backend: GitHub (`gh` CLI)
 - Repository: `Poligun/efficiency`
 - Vocabulary doc: [docs/issues.md](../docs/issues.md)
-- Areas: `area/review`, `area/pm`, `area/evals`, `area/docs`
+- Areas: `area/review`, `area/pm`, `area/evals`, `area/docs`, `area/writing`
 
 ## Vocabulary mapping
 

@@ -262,6 +262,10 @@ fill it.
 
 ## Step 7: Write the report
 
+The report is human-facing prose: write it in the house voice, whose rules the installed
+tech-writing digest carries, keeping this skill's mandated shapes (severity bands,
+finding structure) as specified.
+
 Full rubric in `references/severity-rubric.md` — read it before ranking. In short:
 severity is **impact**, fix-clarity is independent, and ordering puts the cheap fixes
 first within each severity band so the reader gets momentum before they hit the one that

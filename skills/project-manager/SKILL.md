@@ -11,6 +11,11 @@ frontier. It holds **no triage authority** — it never graduates ideas, sets or
 changes priorities, or decides what work means. Those are human calls made
 through the grilling → spec flow.
 
+Both modes end in human-facing output. Write its prose in the house voice,
+whose rules the installed tech-writing digest carries, and keep the mandated
+shapes (the audit table, the report sections) as specified below. Invoke the
+tech-writing skill only for prose beyond the routine sections.
+
 ## Preconditions
 
 Read `.claude/tracker.md` first — every tracker operation below is performed the

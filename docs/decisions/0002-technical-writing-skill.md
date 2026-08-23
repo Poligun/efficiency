@@ -17,10 +17,12 @@ Writing courses One and Two set a strong baseline for clarity and structure, but
 for human writers and say almost nothing about tone; they never anticipated agentic output
 over-compressing below their notion of a "short sentence."
 
-The repo already has the machinery this skill needs: skills developed under `skills/<name>/` and
-symlinked into `~/.claude/skills`, a canonical layout (`SKILL.md`, `references/`, `evals/`,
-`meta/`), rule-ID and findings conventions in the review skills, and cross-harness interface
-sidecars (`agents/openai.yaml`).
+The repo already has most of the machinery this skill needs: skills developed under
+`skills/<name>/` and symlinked into `~/.claude/skills`, a canonical layout (`SKILL.md`,
+`references/`, `evals/`, `meta/`), and rule-ID and findings conventions in the review skills.
+The cross-harness interface sidecar convention (`agents/openai.yaml`) comes from the personal
+skill tree at `~/.agents/skills/`, where every skill carries one; this repo's skills adopt it
+starting with tech-writing.
 
 ## Decisions
 
@@ -126,3 +128,7 @@ Each mined rule is filtered for condescension pressure (see previous decision).
   carries as merge M4 and rule D2 (references/voice.md). The list now names the true near
   misses (prose questions, noun-phrase headings), and the citing-a-competing-tradition case is
   encoded as a temptation fixture the reviewer must still flag.
+- 2026-08-22 (issue #10): the Context originally credited this repo with the
+  `agents/openai.yaml` sidecar convention. The convention exists, but in the personal skill
+  tree (`~/.agents/skills/<name>/agents/openai.yaml`), not in this repo; the Context now
+  attributes it correctly.

@@ -8,10 +8,10 @@
 
 The day-N half of the issue-management package: the skill that keeps a
 bootstrapped tracker honest (audit) and answers "what now?" (frontier). It is
-the automation scarlet's ADR 0015 parked as "round 3 work" — the two standing
-rules (`resolution/done` backfill on auto-closed issues, closing an epic when
-its last task closes) are defined in the taxonomy as *audited-after-the-fact*,
-so until this skill existed they were manual habits.
+the automation the originating repo's ADR parked as "round 3 work" — the two
+standing rules (`resolution/done` backfill on auto-closed issues, closing an
+epic when its last task closes) are defined in the taxonomy as
+*audited-after-the-fact*, so until this skill existed they were manual habits.
 
 ## Shape
 

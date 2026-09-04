@@ -26,3 +26,5 @@
   done) which the tracker maintains natively and which are never labels.
 - **Graduation** — an idea becoming an epic by rewriting the same issue in
   place, so one URL carries the history from thought to shipped.
+- **Originating repo** — the private repo where the taxonomy was first adopted
+  and whose ADR argues its rationale. Referenced by role, never by name.

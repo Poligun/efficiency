@@ -12,9 +12,10 @@ decisions and GitHub's native signals carry execution states, one closed state
 with a `resolution/*` saying why, tasks as native sub-issues of epics, and PR
 linkage by body keyword with `[#N]` title prefixes.
 
-The taxonomy originates in scarlet's ADR 0015, where the rationale for each
-piece is argued in full (why no severity scale, why kanban states are not
-labels, why the native close reasons are derived). This ADR records what *this*
+The taxonomy originates in the ADR of the private repo where it was first
+adopted; that ADR argues the rationale for each piece in full (why no severity
+scale, why kanban states are not labels, why the native close reasons are
+derived). This ADR records what *this*
 repo answered during bootstrap; the deployed copy of the vocabulary lives in
 [docs/issues.md](../issues.md) and is owned by this repo — there is no sync
 obligation to the template or to other repos that adopted it.
@@ -30,7 +31,7 @@ first consumer, and this bootstrap doubled as the skill's acceptance test.
   review-loop), `area/pm` (pm-setup, project-manager), `area/evals`
   (benchmarks, eval fixtures, workspace infra), `area/docs` (meta docs,
   README, repo knowledge).
-- **Doc layout**: the scarlet default — `docs/decisions/` for ADRs,
+- **Doc layout**: the standard default — `docs/decisions/` for ADRs,
   `docs/research/` for research notes, `plans/` for implementation plans,
   `CONTEXT.md` for vocabulary. All were created by this bootstrap; the
   per-skill `meta/` directories continue to hold skill-local design records,

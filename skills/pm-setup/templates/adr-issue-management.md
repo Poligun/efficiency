@@ -18,9 +18,10 @@ decisions and GitHub's native signals carry execution states, one closed state
 with a `resolution/*` saying why, tasks as native sub-issues of epics, and PR
 linkage by body keyword with `[#N]` title prefixes.
 
-The taxonomy originates in scarlet's ADR 0015, where the rationale for each
-piece is argued in full (why no severity scale, why kanban states are not
-labels, why the native close reasons are derived). This ADR records what *this*
+The taxonomy originates in the ADR of the private repo where it was first
+adopted; that ADR argues the rationale for each piece in full (why no severity
+scale, why kanban states are not labels, why the native close reasons are
+derived). This ADR records what *this*
 repo answered during bootstrap; the deployed copy of the vocabulary lives in
 [{{vocabulary_doc}}]({{vocabulary_doc_href}}) and is owned by this repo — there is no
 sync obligation to the template or to other repos that adopted it.

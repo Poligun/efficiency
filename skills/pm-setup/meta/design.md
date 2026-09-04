@@ -6,9 +6,9 @@
 ## What this is
 
 The day-0 half of a transferrable issue-management system. One run deploys, into
-a target repository: the five-family label taxonomy from scarlet's ADR 0015, the
-vocabulary doc, an adoption ADR, the PR template, an AGENTS.md pointer, and —
-the load-bearing piece — the **tracker seam file** at `.claude/tracker.md`.
+a target repository: the five-family label taxonomy from the originating repo's
+ADR, the vocabulary doc, an adoption ADR, the PR template, an AGENTS.md pointer,
+and — the load-bearing piece — the **tracker seam file** at `.claude/tracker.md`.
 
 The one-sentence architecture: **skills consume operations, not backends**. No
 consuming skill (spec, ticket, or `project-manager`) ever hardcodes `gh` or any
@@ -55,17 +55,17 @@ step inspects the live project via whatever MCP/CLI exists.
 The templates in `templates/` are the master. Each deployed repo owns its
 generated copies outright; there is no sync obligation in either direction, and
 drift between repos is deliberate — each repo's adoption ADR records its own
-answers. Scarlet itself becomes just another deployed copy (its `issues.md` was
-the source the template was extracted from; regenerating it from the template
-proves round-tripping).
+answers. The originating repo itself becomes just another deployed copy (its
+`issues.md` was the source the template was extracted from; regenerating it
+from the template proves round-tripping).
 
 ## The tiered interview
 
 Impose the universal core (type/priority/status/resolution, palette,
 invariants, state machines, PR conventions); ask at most three questions — the
-`area/*` set (proposed from repo structure), the doc layout (defaulting to
-scarlet's), and the PR template (consolidate with an existing one, create, or
-skip — the linkage conventions are core, the template *file* is optional).
+`area/*` set (proposed from repo structure), the doc layout (defaulting to the
+standard one), and the PR template (consolidate with an existing one, create,
+or skip — the linkage conventions are core, the template *file* is optional).
 Deviations the user requests are recorded in the generated ADR rather than
 blocked. This sits between "impose everything" (breaks on repos
 with existing doc conventions) and "interview everything" (a 20-question slog
@@ -77,5 +77,5 @@ that defeats easy transfer).
   consumer is the `efficiency` repo itself.
 - Round 2 (deferred): Jira/Confluence/Slack seam implementations (needs a live
   corp instance), plugin packaging as the corp distribution vehicle.
-- Stays scarlet-local: Projects v2 board / milestones (scarlet #56) — GitHub
-  -specific furniture that would pollute the seam.
+- Stays local to the originating repo, tracked there as a follow-up: Projects
+  v2 board / milestones — GitHub-specific furniture that would pollute the seam.

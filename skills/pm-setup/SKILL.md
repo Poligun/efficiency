@@ -11,10 +11,11 @@ machines, resolution-on-close, sub-issue tasks, PR linkage — into the current
 repository, and generate the **tracker seam file** (`.claude/tracker.md`) that every
 consuming skill reads instead of hardcoding tracker commands.
 
-The taxonomy originates in scarlet's ADR 0015. The templates in
-[templates/](templates/) are the canonical master; each deployed repo owns its
-generated copies outright — there is **no sync obligation** back to this skill or
-between repos. Drift is deliberate: each repo's adoption ADR records *its* answers.
+The taxonomy originates in the ADR of the private repo where it was first
+adopted. The templates in [templates/](templates/) are the canonical master;
+each deployed repo owns its generated copies outright — there is **no sync
+obligation** back to this skill or between repos. Drift is deliberate: each
+repo's adoption ADR records *its* answers.
 
 Prose you author or adapt beyond the template boilerplate (the adoption ADR's
 context and decisions, interview summaries, filled template slots) is
@@ -43,7 +44,7 @@ for all of it. The same rules govern edits to the template masters in
    structure (top-level modules, existing docs); the user edits or approves. Zero or
    more per issue; the set grows when a new module cluster appears.
 2. **Doc layout** — where do decisions, research, and plans live? Default to the
-   scarlet layout (`docs/decisions/`, `docs/research/`, `plans/`, `CONTEXT.md` for
+   standard layout (`docs/decisions/`, `docs/research/`, `plans/`, `CONTEXT.md` for
    vocabulary). Create only the directories the answer names; the vocabulary doc's
    pointers use whatever paths the user chose. If the repo already has a doc
    convention, adopt it rather than imposing the default.

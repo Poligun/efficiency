@@ -7,9 +7,9 @@ refer to it).
 ## Confirmed
 
 **Efficiency bootstraps itself via the skill, not by hand.** (Q1)
-A second manual install (after scarlet) teaches nothing and creates a divergent
-copy; the inaugural run against this repo is the acceptance test. Rejected:
-hand-applying the taxonomy first and extracting the skill later.
+A second manual install (after the originating repo's) teaches nothing and
+creates a divergent copy; the inaugural run against this repo is the acceptance
+test. Rejected: hand-applying the taxonomy first and extracting the skill later.
 
 **Three-part set: setup + project-manager + unmodified upstream lifecycle
 skills.** (Q2, Q12, Q15)
@@ -24,9 +24,10 @@ relying passively on AGENTS.md alone without explicit stamping instructions.
 
 **Templates are the master; deployed copies are owned; no sync.** (Q3)
 Keeping N repos in lockstep with a master is a maintenance treadmill for a
-stable taxonomy. Scarlet's `issues.md` regenerates once to prove round-tripping,
-then it too is just an owned copy. Rejected: scarlet-as-canonical with the
-skill vendoring snapshots; any ongoing sync obligation.
+stable taxonomy. The originating repo's `issues.md` regenerates once to prove
+round-tripping, then it too is just an owned copy. Rejected: the originating
+repo as canonical with the skill vendoring snapshots; any ongoing sync
+obligation.
 
 **Skills live in this repo, symlinked into `~/.claude/skills/`.** (Q4)
 Matches deep-code-review / business-logic-review / repo-index. Plugin packaging
@@ -65,19 +66,20 @@ deploy-table shape) and the hardcoded `../.github/…` href that assumed both
 the template's existence and the vocabulary doc's depth.
 
 **Stock labels deleted, existing issues migrated guided-only.** (Q11)
-Deletion of the nine stock labels was validated on scarlet. Type/status calls
-on existing issues are judgment — propose per issue, batch-apply on approval,
-never automatic. Rejected: touch-nothing (leaves two vocabularies live);
-full-auto migration.
+Deletion of the nine stock labels was validated on the originating repo.
+Type/status calls on existing issues are judgment — propose per issue,
+batch-apply on approval, never automatic. Rejected: touch-nothing (leaves two
+vocabularies live); full-auto migration.
 
 **project-manager = audit + frontier, no triage.** (Q7, Q13)
-Pulled forward from scarlet's round 3 because the standing rules (resolution
-backfill, epic close) explicitly wait on it, and it is backend-portable almost
-by definition (queries + fixes over invariants). Frontier reporting makes it a
+Pulled forward from the originating repo's round 3 because the standing rules
+(resolution backfill, epic close) explicitly wait on it, and it is
+backend-portable almost by definition (queries + fixes over invariants).
+Frontier reporting makes it a
 daily driver. Triage authority rejected: graduation already has a home in the
 grilling → spec flow, and priority is exactly the call an agent shouldn't make
-unprompted. Projects v2 (scarlet #56) rejected from the package: GitHub
--specific furniture.
+unprompted. Projects v2, tracked as a follow-up in the originating repo,
+rejected from the package: GitHub-specific furniture.
 
 **Design-stage treatment: meta/ + SKILL.md, evals deferred.** (Q14)
 Same stage as review-loop. Honest deferral: evaluating a bootstrap skill needs

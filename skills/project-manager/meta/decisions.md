@@ -27,8 +27,8 @@ decision.
 and its trigger phrases ("what should I work on", "tracker health") are
 natural conversation — so its description invites model invocation.
 
-**Pulled forward from scarlet round 3 into the transferrable package.** (Q7)
+**Pulled forward from the originating repo's round 3 into the transferrable
+package.** (Q7)
 The standing rules explicitly wait on it and it is backend-portable almost by
-definition. Scarlet's round-3 remainder (per-type body templates, language
-guide, runbook conversion) and round 2 (Projects v2, milestones) stay
-scarlet-local.
+definition. The originating repo's remaining round-3 automation and its round 2
+(Projects v2, milestones) stay local to it.

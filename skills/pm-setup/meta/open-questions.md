@@ -36,9 +36,10 @@ Deferred, not forgotten. Round numbers follow the design's rollout state.
 
 ## Smaller
 
-- **Label-sync target.** Scarlet's ADR deferred a declarative label-sync until
-  the set churns. If the palette or families ever change, re-running pm-setup's
-  refresh path covers it; revisit only if that proves clumsy.
+- **Label-sync target.** The originating repo's ADR deferred a declarative
+  label-sync until the set churns. If the palette or families ever change,
+  re-running pm-setup's refresh path covers it; revisit only if that proves
+  clumsy.
 - **`/grill-with-docs` dangling reference** (adjacent, not this skill): it
   points at a `domain-modeling` skill that doesn't exist and its own skill dir
   is empty. Fix or delete separately.

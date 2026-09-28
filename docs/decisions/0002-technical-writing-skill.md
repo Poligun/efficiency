@@ -132,3 +132,8 @@ Each mined rule is filtered for condescension pressure (see previous decision).
   `agents/openai.yaml` sidecar convention. The convention exists, but in the personal skill
   tree (`~/.agents/skills/<name>/agents/openai.yaml`), not in this repo; the Context now
   attributes it correctly.
+- 2026-09-27 (issue #23): the skill-local installer gave way to the repo-level `install.py`
+  that the Decisions section anticipated. It links every skill and writes the same marked
+  block under the same contract, and it runs on native Windows, where `install.sh` could not
+  because it needs bash and a working `python3`. `scripts/install.sh` remains as a shim that
+  installs tech-writing alone. The per-skill manifest stays on idea #11.

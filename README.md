@@ -55,33 +55,35 @@ Enforcement is layered, so the voice holds even when the skill never triggers:
   pair, repo-index) each carry a one-sentence wire holding their reports to the house
   voice.
 
-The skill installs through its own idempotent script rather than a manual symlink,
-because it also places the digest and links the cross-harness tree:
-
-```bash
-skills/tech-writing/scripts/install.sh            # symlink + global digest
-skills/tech-writing/scripts/install.sh --repo .   # also this repo's AGENTS.md
-```
-
-Re-running refreshes the digest block in place; setting up a new machine is clone plus
-run.
+The repo-level installer (next section) links the skill, places the digest, and links the
+cross-harness tree. A manual symlink would skip the digest. Re-running refreshes the digest
+block in place.
 
 ## Install
 
-Skills are directories. Symlink or copy the ones you want into `~/.claude/skills/`:
+One idempotent script installs every skill on Linux, macOS, WSL, and native Windows:
 
 ```bash
-ln -s "$PWD/skills/deep-code-review"      ~/.claude/skills/
-ln -s "$PWD/skills/business-logic-review" ~/.claude/skills/
-ln -s "$PWD/skills/repo-index"            ~/.claude/skills/
-ln -s "$PWD/skills/pm-setup"              ~/.claude/skills/
-ln -s "$PWD/skills/project-manager"       ~/.claude/skills/
+python3 install.py              # link all skills + write the global digest
+python3 install.py --repo .     # also write the digest into this repo's AGENTS.md
+python3 install.py --dry-run    # print the plan, change nothing
+python3 install.py --skill deep-code-review --skill business-logic-review
 ```
 
+The script links each directory under `skills/` that holds a `SKILL.md` into
+`~/.claude/skills/`, and into `~/.agents/skills/` when that tree exists. The links point at
+this clone, so a `git pull` updates every installed skill; moving the clone means running
+the script again. An existing link is re-pointed, and a real directory in the way aborts
+the install before anything changes. Installing `tech-writing` also writes the house-voice
+digest described above; `skills/tech-writing/scripts/install.sh` is the older entry point
+for that one skill and now calls `install.py`.
+
+On native Windows, run it as `python install.py` from PowerShell or Git Bash: `python3` there
+is usually the Microsoft Store stub. With Developer Mode on, the links are symlinks;
+otherwise the script falls back to directory junctions, which need no extra rights.
+
 `deep-code-review` delegates to `business-logic-review` by relative path, so install both
-to get the full pipeline. It degrades gracefully if you don't. `tech-writing` is the
-exception: install it with its script (previous section), which a manual symlink would
-only half-install by skipping the ambient digest.
+to get the full pipeline. It degrades gracefully if you don't.
 
 ## Layout
 

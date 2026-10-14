@@ -14,7 +14,8 @@ Idempotent and cross-platform (Linux, macOS, WSL, native Windows). What it does:
 
 Skills link by absolute path, so moving the clone means re-running the install.
 The block logic is the ADR 2 contract that skills/tech-writing/scripts/install.sh
-used to carry; that script is now a shim over this one.
+used to carry; this script replaced it, and `--skill tech-writing` installs that
+skill alone.
 
 Usage:
   python3 install.py                          all skills + global digest

@@ -75,8 +75,8 @@ The script links each directory under `skills/` that holds a `SKILL.md` into
 this clone, so a `git pull` updates every installed skill; moving the clone means running
 the script again. An existing link is re-pointed, and a real directory in the way aborts
 the install before anything changes. Installing `tech-writing` also writes the house-voice
-digest described above; `skills/tech-writing/scripts/install.sh` is the older entry point
-for that one skill and now calls `install.py`.
+digest described above. `--skill tech-writing` installs that skill alone; the older
+`skills/tech-writing/scripts/install.sh` entry point is gone.
 
 On native Windows, run it as `python install.py` from PowerShell or Git Bash: `python3` there
 is usually the Microsoft Store stub. With Developer Mode on, the links are symlinks;

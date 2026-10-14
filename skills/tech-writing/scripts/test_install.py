@@ -1,38 +1,47 @@
 #!/usr/bin/env python3
-"""Tests for install.sh, the digest installer (issue #9).
+"""Tests for the tech-writing install contract (issues #9 and #23).
 
-The installer's contract, per ADR 2: symlink the skill into ~/.claude/skills,
-write the digest into a marked block in global ~/.claude/CLAUDE.md, mirror the
-block into a repo's AGENTS.md under --repo, refresh blocks in place on re-run,
-and refuse to install a digest that fails corpus traceability. Every test runs
-against a throwaway HOME so the real machine is never touched; the digest can
-be overridden via TW_DIGEST_FILE for the failure-path tests.
+The contract, per ADR 2: link the skill into ~/.claude/skills, write the
+digest into a marked block in global ~/.claude/CLAUDE.md, mirror the block
+into a repo's AGENTS.md under --repo, refresh blocks in place on re-run, and
+refuse to install a digest that fails corpus traceability. The tests drive the
+repo-level install.py with --skill tech-writing. Every test installs into a
+throwaway --home so the real machine is never touched; the digest can be
+overridden via TW_DIGEST_FILE for the failure-path tests. Runs on POSIX and
+native Windows.
 
-Run:  python3 test_install.py            (stdlib only, no pytest needed)
+Run:  python3 test_install.py   (stdlib only; `python` on native Windows)
 """
 
 from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILL_DIR = os.path.dirname(HERE)
-INSTALL = os.path.join(HERE, "install.sh")
+REPO_DIR = os.path.dirname(os.path.dirname(SKILL_DIR))
+INSTALL = os.path.join(REPO_DIR, "install.py")
 DIGEST = os.path.join(SKILL_DIR, "references", "digest.md")
+
+sys.path.insert(0, REPO_DIR)
+from install import is_link  # noqa: E402
 
 MARK_OPEN = "<!-- tech-writing-digest v1 -->"
 MARK_CLOSE = "<!-- /tech-writing-digest -->"
 
 
 def run_install(home, *args, digest=None):
-    env = dict(os.environ, HOME=home)
+    env = dict(os.environ)
     if digest:
         env["TW_DIGEST_FILE"] = digest
-    return subprocess.run(["bash", INSTALL, *args],
-                          capture_output=True, text=True, env=env)
+    return subprocess.run(
+        [sys.executable, INSTALL, "--skill", "tech-writing", "--home", home,
+         *args],
+        capture_output=True, text=True, env=env)
 
 
 class TestGlobalInstall(unittest.TestCase):
@@ -52,7 +61,7 @@ class TestGlobalInstall(unittest.TestCase):
     def test_installs_symlink_and_digest_block(self):
         proc = run_install(self.home)
         self.assertEqual(proc.returncode, 0, proc.stderr)
-        self.assertTrue(os.path.islink(self.link))
+        self.assertTrue(is_link(self.link))
         self.assertEqual(os.path.realpath(self.link),
                          os.path.realpath(SKILL_DIR))
         content = self.read(self.claude_md)
@@ -75,7 +84,7 @@ class TestGlobalInstall(unittest.TestCase):
         run_install(self.home)
         stale = self.read(self.claude_md).replace(
             self.read(DIGEST).strip(), "stale digest body")
-        with open(self.claude_md, "w") as f:
+        with open(self.claude_md, "w", encoding="utf-8") as f:
             f.write(stale)
         proc = run_install(self.home)
         self.assertEqual(proc.returncode, 0, proc.stderr)
@@ -85,10 +94,10 @@ class TestGlobalInstall(unittest.TestCase):
 
     def test_preserves_surrounding_content(self):
         os.makedirs(os.path.dirname(self.claude_md))
-        with open(self.claude_md, "w") as f:
+        with open(self.claude_md, "w", encoding="utf-8") as f:
             f.write("# My global notes\n\nkeep me\n")
         run_install(self.home)
-        with open(self.claude_md, "a") as f:
+        with open(self.claude_md, "a", encoding="utf-8") as f:
             f.write("\ntrailing note\n")
         run_install(self.home)
         content = self.read(self.claude_md)
@@ -103,7 +112,7 @@ class TestGlobalInstall(unittest.TestCase):
         proc = run_install(self.home)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         link = os.path.join(agents, "tech-writing")
-        self.assertTrue(os.path.islink(link))
+        self.assertTrue(is_link(link))
         self.assertEqual(os.path.realpath(link), os.path.realpath(SKILL_DIR))
 
     def test_skips_agents_tree_when_absent(self):
@@ -119,7 +128,7 @@ class TestGlobalInstall(unittest.TestCase):
         self.assertIn("tech-writing", proc.stderr)
 
     def test_aborts_on_untraced_digest(self):
-        with tempfile.NamedTemporaryFile("w", suffix=".md",
+        with tempfile.NamedTemporaryFile("w", suffix=".md", encoding="utf-8",
                                          delete=False) as f:
             f.write("# Digest\n\n- A line citing no rule.\n")
             bad = f.name
@@ -148,7 +157,7 @@ class TestRepoInstall(unittest.TestCase):
             return f.read()
 
     def test_repo_flag_appends_block_to_existing_agents_md(self):
-        with open(self.agents_md, "w") as f:
+        with open(self.agents_md, "w", encoding="utf-8") as f:
             f.write("# Issues and PRs\n\nexisting guidance\n")
         proc = run_install(self.home, "--repo", self.repo)
         self.assertEqual(proc.returncode, 0, proc.stderr)
@@ -178,7 +187,7 @@ class TestShippedDigest(unittest.TestCase):
     def test_digest_exists_and_traces_to_corpus(self):
         self.assertTrue(os.path.exists(DIGEST))
         proc = subprocess.run(
-            ["python3", os.path.join(HERE, "prose_checks.py"), "digest"],
+            [sys.executable, os.path.join(HERE, "prose_checks.py"), "digest"],
             capture_output=True, text=True)
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         self.assertIn('"status": "ok"', proc.stdout)

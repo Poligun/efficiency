@@ -5,8 +5,8 @@ The contract: link every directory under skills/ that holds a SKILL.md into
 <home>/.claude/skills (and <home>/.agents/skills when present), re-point
 existing links, refuse to replace a real directory before changing anything,
 and write the tech-writing digest block the way ADR 2 describes. The digest
-block's own edge cases are covered by skills/tech-writing/scripts/test_install.py
-through the install.sh shim; this suite covers what is new.
+block's own edge cases are covered by skills/tech-writing/scripts/test_install.py,
+which runs this script with --skill tech-writing; this suite covers the rest.
 
 Every test installs into a throwaway --home, so the real machine is never
 touched. Runs on POSIX and native Windows.

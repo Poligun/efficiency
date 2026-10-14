@@ -137,3 +137,7 @@ Each mined rule is filtered for condescension pressure (see previous decision).
   block under the same contract, and it runs on native Windows, where `install.sh` could not
   because it needs bash and a working `python3`. `scripts/install.sh` remains as a shim that
   installs tech-writing alone. The per-skill manifest stays on idea #11.
+- 2026-10-14 (issue #23): the `scripts/install.sh` shim is removed, because it could not run from
+  PowerShell or cmd and kept the digest tests on bash. `install.py --skill tech-writing` is
+  the entry point for this skill alone, and the skill-local `test_install.py` drives it
+  through the running interpreter, so the digest contract is now tested on native Windows.

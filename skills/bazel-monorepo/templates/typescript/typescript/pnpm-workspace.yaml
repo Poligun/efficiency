@@ -1,0 +1,17 @@
+# pnpm settings for the one JavaScript tree (docs/conventions/typescript.md).
+# No `packages` list: typescript/ is a single project with one package.json,
+# and this file only carries the settings pnpm 10 reads from here rather
+# than from package.json.
+#
+# allowBuilds: rules_js runs a package's install scripts only when it is
+# named here, and refuses a lockfile with no such list. Empty means no
+# package runs one: every dependency ships its binaries as optional
+# platform packages, so nothing needs a build step.
+allowBuilds: {}
+
+# eslint-plugin-jsx-a11y 6.10.2 is the latest release and declares ESLint up
+# to 9; its flat config runs on ESLint 10 unchanged. Drop this entry when a
+# release declares ^10.
+peerDependencyRules:
+  allowedVersions:
+    "eslint-plugin-jsx-a11y>eslint": "10"

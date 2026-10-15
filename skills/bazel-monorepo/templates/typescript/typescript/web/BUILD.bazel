@@ -1,0 +1,97 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("//tools/typescript:defs.bzl", "ts_library", "ts_test", "vite_app")
+
+# The app root (docs/conventions/typescript.md): index.html, the entry
+# point, the Vite config and the tsconfig every deeper package points at.
+# Screens and shared components arrive as subpackages.
+
+# The app's compiler settings: the shared base plus this app's ambient types.
+# Every ts_library and ts_test under typescript/web type-checks against it.
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//typescript/web:__subpackages__"],
+    deps = ["//typescript:tsconfig_base"],
+)
+
+# What runs before every test file: Testing Library's cleanup. Not
+# testonly: the Vite config that names it also drives the production build.
+ts_library(
+    name = "vitest_setup",
+    srcs = ["vitest_setup.ts"],
+    tsconfig = ":tsconfig",
+    deps = [
+        "//typescript:node_modules/@testing-library/react",
+        "//typescript:node_modules/vitest",
+    ],
+)
+
+# The Vite config and the plugins it imports, an input of the build, the dev
+# server and every test target. package.json rides along so Vite finds the
+# tree's module type beside the config and loads it as ES modules.
+js_library(
+    name = "vite_config",
+    srcs = ["vite.config.ts"],
+    visibility = ["//typescript:__subpackages__"],
+    deps = [
+        ":vitest_setup",
+        "//typescript:node_modules/@vitejs/plugin-react",
+        "//typescript:node_modules/vite",
+        "//typescript:node_modules/vitest",
+        "//typescript:package_json",
+    ],
+)
+
+# The app root: the shell and the entry point. The stylesheet rides as
+# data: tsc reads only the module declaration Vite's types give a CSS
+# import, and Vite and Vitest read the file.
+ts_library(
+    name = "web",
+    srcs = [
+        "app.tsx",
+        "main.tsx",
+    ],
+    data = ["app.css"],
+    tsconfig = ":tsconfig",
+    visibility = ["//typescript:__subpackages__"],
+    deps = [
+        "//typescript:node_modules/@types/react",
+        "//typescript:node_modules/@types/react-dom",
+        "//typescript:node_modules/react",
+        "//typescript:node_modules/react-dom",
+        # The ambient types behind import.meta.env, named by main.tsx.
+        "//typescript:node_modules/vite",
+        "//typescript/web/greeting",
+    ],
+)
+
+ts_test(
+    name = "web_test",
+    srcs = ["app_test.tsx"],
+    config = ":vite_config",
+    tsconfig = ":tsconfig",
+    deps = [
+        ":web",
+        "//typescript:node_modules/@testing-library/react",
+        "//typescript:node_modules/@types/react",
+        "//typescript:node_modules/jsdom",
+        "//typescript:node_modules/react",
+        "//typescript:node_modules/vitest",
+    ],
+)
+
+# The build: index.html and the files Vite reads that no library owns.
+#
+#   bazel build //typescript/web:app      # the production files, bazel-bin/typescript/web/dist
+#   bazel run //typescript/web:app_dev    # the Vite dev server on localhost
+vite_app(
+    name = "app",
+    srcs = [
+        "app.css",
+        "index.html",
+    ],
+    config = ":vite_config",
+    visibility = ["//visibility:public"],
+    deps = [":web"],
+)

@@ -1,0 +1,15 @@
+{
+  // The tree root's tsconfig names no files: every app has its own, and
+  // Bazel type-checks per target. It exists so a tool that resolves
+  // imports from the tree root (knip) reads the shared compiler options,
+  // jsx and moduleResolution above all, and so an editor opening a file
+  // outside any app still finds them. preserveSymlinks keeps a resolved
+  // import on the path it was imported from: under Bazel every file the
+  // tool sees is a symlink, and resolving one to its target would put it
+  // outside the tree the tool was told to analyse.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "preserveSymlinks": true
+  },
+  "files": []
+}

@@ -1,0 +1,6 @@
+# Python wiring. defs.bzl exports the py_library, py_test and
+# py_binary every package under python/ loads; each is a symbolic macro over
+# the rules_py rule of the same name that also declares the ruff, format and
+# mypy tests over its own sources. linters.bzl holds the ruff aspect,
+# mypy_test.bzl the mypy runner's macro, imports.bzl the shared import root
+# and labels.bzl the label helper. This package owns no targets.

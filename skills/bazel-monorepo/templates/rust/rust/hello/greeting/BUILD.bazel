@@ -1,0 +1,17 @@
+load("//tools/rust:defs.bzl", "rust_library", "rust_test")
+
+# One rust_library per module, each in its own package. The wrapper declares
+# hello_greeting_clippy and hello_greeting_rustfmt_test over the library and
+# hello_greeting_test_clippy over the test build, which is the one that sees
+# the #[cfg(test)] code.
+rust_library(
+    name = "hello_greeting",
+    srcs = glob(["*.rs"]),
+    crate_root = "greeting.rs",
+    visibility = ["//rust/hello:__subpackages__"],
+)
+
+rust_test(
+    name = "hello_greeting_test",
+    crate = ":hello_greeting",
+)

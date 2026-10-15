@@ -1,0 +1,35 @@
+{
+  // knip finds exports nothing imports and dependencies nothing uses:
+  // bazel run //typescript:knip, over the source tree.
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "tools/*.mjs",
+    "web/main.tsx",
+    // Vitest's setup file, named in vite.config.ts by a path Vitest resolves
+    // against its root and knip against the tree root; knip is told the
+    // file's role here and to leave that reference alone below.
+    "web/vitest_setup.ts",
+    "**/*_test.{ts,tsx}",
+  ],
+  "project": ["**/*.{ts,tsx,js,mjs}"],
+  // Generated protobuf modules exist only under bazel-bin/typescript/proto
+  // (tools/typescript/proto.bzl), so their imports do not resolve in the
+  // source tree. knip reads a pattern with a star as a regular expression,
+  // so this one is written as one, over the specifier as the importing
+  // file spells it: any number of "../" then "proto/".
+  "ignoreUnresolved": ["vitest_setup.ts", "\\.\\./proto/.*_pb\\.js$"],
+  "vite": {
+    "config": ["web/vite.config.ts", "tools/vite.config.ts"],
+  },
+  "vitest": {
+    "config": ["web/vite.config.ts", "tools/vite.config.ts"],
+  },
+  // Only Bazel targets consume these: rules_lint's report formatter resolves
+  // chalk, eslint-plugin-import-x resolves the parser by name, and the
+  // ts_proto_library rule runs protoc-gen-es.
+  "ignoreDependencies": [
+    "chalk",
+    "@typescript-eslint/parser",
+    "@bufbuild/protoc-gen-es",
+  ],
+}

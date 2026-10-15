@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Fast formatting checks only. Compiles nothing. The full gate runs on push.
+# A shim by policy (docs/conventions/automation.md): any logic beyond a
+# guard clause moves into a bazel run target that this file then execs.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+bazel test --test_output=errors //:buildifier_test
+{{#if rust}}
+
+# rustfmt over every Rust target via the aspect. A bare --output_groups value
+# (no leading +) replaces the default output group, so no rustc actions run.
+bazel build \
+    --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect \
+    --output_groups=rustfmt_checks \
+    //...
+{{/if}}

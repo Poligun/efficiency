@@ -1,0 +1,118 @@
+# Python dependencies for the repository, locked by uv. The uv hub in
+# MODULE.bazel reads this file and uv.lock; Bazel builds the packages, so
+# there is no local virtualenv to manage. Regenerate the lockfile after
+# editing:
+#
+#   bazel run @uv -- lock
+#
+# The ruff and mypy configuration below is the machine-readable half of
+# docs/conventions/python.md.
+[project]
+name = "{{name}}"
+version = "0.0.0"
+# Bump the Python version in all three places together: here, the
+# interpreters.toolchain in MODULE.bazel, and the python_version flag in
+# .bazelrc. Then re-lock.
+requires-python = ">=3.14"
+dependencies = [
+    # diff-cover computes patch coverage for the coverage gate.
+    "diff-cover==10.6.0",
+    # pytest runs the tests, coverage writes the lcov the gate reads, and
+    # mypy is the type check behind tools/python/mypy_test.bzl. They sit in
+    # the project dependencies rather than a dependency group on purpose:
+    # rules_py turns each group into a venv and drops the implicit venv that
+    # every binary here selects.
+    "pytest==9.1.1",
+    "coverage==7.16.2",
+    # Ceiling, not a preference: mypy 2.x depends on ast-serialize, whose
+    # wheel set carries the free-threaded abi3t ABI tag, and the uv hub in
+    # rules_py 1.x has no constraint for that tag. Lift this to 2.x together
+    # with the rules_py 2.x bump.
+    "mypy==1.20.2",
+    # Not dependencies of anything here. The uv hub requires these two build
+    # tools in the lock solution to compile packages that ship only as
+    # source distributions. uv.lock pins their exact versions and hashes.
+    "build",
+    "setuptools",
+]
+
+# Patch-coverage exclusions for the coverage gate. Starts empty on purpose:
+# an exclusion is earned after the gate has bitten twice for the same
+# justified reason, and every entry added here must carry a comment saying
+# what earned it. The intended order of responses to a gate bite is:
+# structure the code so the untestable wiring concentrates in the entry
+# point, then exclude the file here, then the skip variable.
+[tool.diff_cover]
+exclude = []
+
+# ruff formats and lints every Python file. The target version is inferred
+# from requires-python above. src names the import root, so that import
+# sorting places packages under python/ in the first-party section.
+[tool.ruff]
+src = ["python"]
+
+[tool.ruff.lint]
+# Everything on, the ruff spelling of clippy::pedantic. Each entry below
+# names what earned it; an entry without a reason is a review finding.
+select = ["ALL"]
+ignore = [
+    # ruff's documented list of rules that conflict with its own formatter.
+    "W191",
+    "E111",
+    "E114",
+    "E117",
+    "D203",
+    "D206",
+    "D300",
+    "Q000",
+    "Q001",
+    "Q002",
+    "Q003",
+    "Q004",
+    "COM812",
+    "COM819",
+    "ISC002",
+    # Missing annotations: mypy in strict mode reports them with better
+    # messages, and mypy is the checker.
+    "ANN",
+    # No __init__.py files: packages are namespace packages, because two files
+    # under one program's tree never share a name.
+    "INP001",
+    # A command-line tool's output is its interface; print is the mechanism.
+    "T201",
+    # No file in this repository carries a copyright header.
+    "CPY",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests: no docstring requirement, a bare assert is pytest's idiom, and the
+# literal in an assertion is the expected value, not a magic number.
+"*_test.py" = ["D", "S101", "PLR2004"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# One entry per program directory under python/. A lint action has only its
+# own target's files as inputs, so with the library file absent from the
+# sandbox ruff would sort a test's import of its own library as third-party
+# (I001). Add the entry together with the directory.
+[tool.ruff.lint.isort]
+known-first-party = [
+    "coverage_gate",
+    "hello",
+    "mypy_check",
+    "proc",
+]
+
+# mypy in strict mode is the type check. tools/python/mypy_test.bzl runs it
+# per target as a py_test, from the runfiles root, so mypy_path is relative
+# to that root. Namespace packages with explicit bases because there are no
+# __init__.py files. No python_version: mypy targets the interpreter it runs
+# on, which is the pinned one, so the version lives in its three places and
+# not a fourth.
+[tool.mypy]
+strict = true
+warn_unreachable = true
+mypy_path = "python"
+namespace_packages = true
+explicit_package_bases = true

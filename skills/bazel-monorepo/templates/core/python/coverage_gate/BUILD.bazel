@@ -1,0 +1,36 @@
+load("//tools/python:defs.bzl", "py_binary", "py_library", "py_test")
+
+# The patch-coverage gate (docs/conventions/gates.md): bazel run //:coverage_gate.
+# The binary is a shim over the library so the logic is testable with a
+# recording runner.
+py_binary(
+    name = "gate",
+    srcs = ["gate.py"],
+    args = [
+        "--threshold=95",
+        "--compare-branch=origin/{{main_branch}}",
+        "--targets=//...",
+    ],
+    main = "gate.py",
+    visibility = ["//visibility:public"],
+    deps = [":coverage_gate"],
+)
+
+py_library(
+    name = "coverage_gate",
+    srcs = ["coverage_gate.py"],
+    deps = [
+        "//python/proc",
+        "@pypi//diff_cover",
+    ],
+)
+
+py_test(
+    name = "coverage_gate_test",
+    srcs = ["coverage_gate_test.py"],
+    deps = [
+        ":coverage_gate",
+        "//python/proc",
+        "//python/proc/testutil:proc_testutil",
+    ],
+)

@@ -1,0 +1,19 @@
+load("//tools/python:defs.bzl", "py_library", "py_test")
+
+# The runner behind tools/python/mypy_test.bzl. The macro names
+# this file as the main of every mypy test, so it is exported as a file as
+# well as wrapped in the library that carries the mypy dependency.
+exports_files(["mypy_check.py"])
+
+py_library(
+    name = "mypy_check",
+    srcs = ["mypy_check.py"],
+    visibility = ["//visibility:public"],
+    deps = ["@pypi//mypy"],
+)
+
+py_test(
+    name = "mypy_check_test",
+    srcs = ["mypy_check_test.py"],
+    deps = [":mypy_check"],
+)

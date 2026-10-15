@@ -1,0 +1,27 @@
+# Bazel
+/bazel-*
+user.bazelrc
+{{#if rust}}
+
+# rustfmt
+*.rs.bk
+
+# Cargo is not used for building, but rust-analyzer and ad-hoc tooling may
+# create these.
+**/target/
+
+# rust-analyzer's index, generated per machine.
+rust-project.json
+.rules_rust_analyzer/
+{{/if}}
+
+# Editor settings are machine local.
+.vscode/
+
+__pycache__/
+{{#if typescript}}
+
+# The JavaScript tree resolves packages from the Bazel-built store; the
+# link here is for editors and ad-hoc tool runs only.
+typescript/node_modules
+{{/if}}

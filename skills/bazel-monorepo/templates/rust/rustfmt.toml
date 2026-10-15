@@ -1,0 +1,6 @@
+# rustfmt reads this file from the working directory upward. rules_rust's own
+# rustfmt targets pass the edition on the command line; the format entry point
+# (bazel run //:format) runs upstream rustfmt without one, and
+# without this line it would parse edition 2024 code as edition 2015. Keep in
+# step with rust.toolchain(edition = ...) in MODULE.bazel.
+edition = "2024"

@@ -1,0 +1,10 @@
+load("@bazelrc-preset.bzl", "bazelrc_preset")
+
+# Generates tools/preset.bazelrc, a checked-in set of recommended Bazel flags
+# matched to the Bazel version in .bazelversion. Imported at the top of the
+# root .bazelrc. Update after a Bazel upgrade with:
+#
+#   bazel run //tools:preset.update
+bazelrc_preset(
+    name = "preset",
+)

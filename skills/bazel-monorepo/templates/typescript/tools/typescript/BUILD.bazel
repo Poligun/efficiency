@@ -1,0 +1,41 @@
+load("@npm//typescript:eslint/package_json.bzl", eslint_bin = "bin")
+load("@npm//typescript:prettier/package_json.bzl", prettier_bin = "bin")
+load("@npm//typescript:vite/package_json.bzl", vite_bin = "bin")
+
+# TypeScript wiring. defs.bzl exports the ts_library, ts_test and
+# vite_app every package under typescript/ loads; each is a symbolic macro
+# that also declares the type check, the ESLint test and the format test
+# over its own sources, the shape of //tools/python:defs.bzl. linters.bzl
+# holds the ESLint aspect. The binaries below are the tools those macros
+# and the root format entry point run; the Vitest launcher lives in
+# //typescript/tools, inside the tree whose packages it imports.
+
+# ESLint for the lint aspect. The configuration and its plugins arrive as
+# inputs of each lint action (//typescript:eslint_config), not here. chalk
+# is for rules_lint's report formatter, which resolves it from the directory
+# that owns ESLint's node_modules, so it must be a direct dependency there.
+eslint_bin.eslint_binary(
+    name = "eslint",
+    data = ["//typescript:node_modules/chalk"],
+    visibility = ["//visibility:public"],
+)
+
+# Prettier for `bazel run //:format` and the per-target format tests. The
+# configuration is passed explicitly because the formatter runs from the
+# runfiles tree, where Prettier's own upward search finds nothing.
+prettier_bin.prettier_binary(
+    name = "prettier",
+    data = ["//typescript:prettier_config"],
+    env = {"BAZEL_BINDIR": "."},
+    fixed_args = [
+        "--config=\"$$JS_BINARY__RUNFILES\"/$(rlocationpath //typescript:prettier_config)",
+        "--log-level=warn",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Vite as a runnable for the dev server (vite_app's <name>_dev target).
+vite_bin.vite_binary(
+    name = "vite",
+    visibility = ["//visibility:public"],
+)

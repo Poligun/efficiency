@@ -1,0 +1,13 @@
+load("//tools/rust:defs.bzl", "rust_binary")
+
+# A binary owns this directory; its module libraries are the subdirectories
+# (docs/conventions/rust.md). There is no rust_test here on purpose: main.rs
+# holds no logic to test; it all lives in //rust/hello/app.
+#
+#   bazel run //rust/hello -- world
+rust_binary(
+    name = "hello",
+    srcs = ["main.rs"],
+    visibility = ["//visibility:public"],
+    deps = ["//rust/hello/app:hello_app"],
+)

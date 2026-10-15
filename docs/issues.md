@@ -51,6 +51,7 @@ severity scale (ADR 1).
 | `area/evals` | Benchmarks, eval fixtures, workspace infra |
 | `area/docs` | Meta docs, README, repo knowledge |
 | `area/writing` | Technical writing skill and house-voice enforcement |
+| `area/build` | Repository build-and-conventions skills: bazel-monorepo |
 
 The set grows when a new skill cluster appears.
 

@@ -6,6 +6,14 @@ order of value:
 
 ## Next up
 
+- [ ] **A runnable server in the proto feature.** The templates generate
+      the code and implement a handler with a unit test, but nothing
+      registers the service, builds the runtime or serves health and
+      reflection; proto.md PB-7 and rust.md RS-14 describe that shape and
+      say so. A `rust/hello/serve/` crate with bind, serve, shutdown and
+      an integration test over a real socket would make the two rules
+      concrete, at the cost of the tokio, tonic-health and
+      tonic-reflection dependencies in the core proto feature.
 - [ ] **A service-start handle template.** testing.md TE-4 describes the
       handle that starts a store per test function from a Bazel-fetched
       archive; the package sketches it and ships no code. A generic Rust

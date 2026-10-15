@@ -88,10 +88,15 @@ file and those disagree, the conventions win.
    The wrappers declare the lint, format and type-check targets; never
    write one by hand.
 
-3. Wire the new library into its consumers with buildozer, not text edits:
+3. Wire the new library into its consumers with buildozer, not text edits.
+   Rust and Python targets carry the owner prefix; a TypeScript target
+   is named after its directory alone (the package path already carries
+   the app):
 
    ```
-   bazel run @buildozer -- 'add deps //<tree>/O/M:O_M' //<tree>/O:O
+   bazel run @buildozer -- 'add deps //rust/O/M:O_M' //rust/O/app:O_app
+   bazel run @buildozer -- 'add deps //python/O/M:O_M' //python/O:O
+   bazel run @buildozer -- 'add deps //typescript/O/M:M' //typescript/O:O
    ```
 
    For Python, also add `O` to `known-first-party` in `pyproject.toml` if
@@ -119,7 +124,7 @@ file and those disagree, the conventions win.
 - `glob(["*.rs"])`, never recursive. Subdirectories are their own Bazel
   packages, and the wrappers cannot glob for you.
 - The root file is named after the directory, while the target keeps the
-  `O_M` name. No `lib.rs`, no `mod.rs`, no `__init__.py`, no `index.ts`,
+  `O_M` name (Rust, Python) or the directory's name (TypeScript). No `lib.rs`, no `mod.rs`, no `__init__.py`, no `index.ts`,
   no `src/`. No two files under one owner's tree may share a name.
 - Keep visibility at `//<tree>/O:__subpackages__`. If a second owner needs
   the library later, move it up to `<tree>/<name>/` instead of reaching

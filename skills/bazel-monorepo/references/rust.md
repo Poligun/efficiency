@@ -224,6 +224,10 @@ address observable before serving starts. `serve` owns shutdown, installs
 the signal handlers itself, and drains in-flight requests; tests inject
 their own shutdown future through a crate-private variant.
 
+**Applies when.** The binary runs a server or another long-lived loop.
+The bootstrap's example binary is a one-shot program and builds no
+runtime.
+
 ## RS-15. Third-party crates are `crate.spec` entries
 
 Declared in `MODULE.bazel` in crate_universe's direct-dependency mode,

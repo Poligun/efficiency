@@ -10,7 +10,7 @@ applies. An assessment walks this list top to bottom.
 - [LA-1](layout.md#la-1-a-program-owns-a-directory-its-modules-are-subdirectories) A program owns a directory; its modules are subdirectories
 - [LA-2](layout.md#la-2-no-src-directory) No `src/` directory
 - [LA-3](layout.md#la-3-the-root-file-is-named-after-its-directory) The root file is named after its directory
-- [LA-4](layout.md#la-4-no-two-files-under-one-owner-s-tree-share-a-name) No two files under one owner's tree share a name
+- [LA-4](layout.md#la-4-no-two-files-under-one-owners-tree-share-a-name) No two files under one owner's tree share a name
 - [LA-5](layout.md#la-5-tests-sit-beside-the-code) Tests sit beside the code
 - [LA-6](layout.md#la-6-a-file-splits-when-it-gains-a-second-concern) A file splits when it gains a second concern
 - [LA-7](layout.md#la-7-shared-code-moves-up-never-sideways) Shared code moves up, never sideways
@@ -22,7 +22,7 @@ applies. An assessment walks this list top to bottom.
 - [BZ-1](bazel.md#bz-1-one-module-bzlmod-no-workspace) One module, bzlmod, no WORKSPACE
 - [BZ-2](bazel.md#bz-2-common-flags-come-from-a-generated-preset) Common flags come from a generated preset
 - [BZ-3](bazel.md#bz-3-toolchains-are-pinned-and-fetched-never-taken-from-the-host) Toolchains are pinned and fetched, never taken from the host
-- [BZ-4](bazel.md#bz-4-language-rules-are-loaded-from-the-repository-s-wrappers) Language rules are loaded from the repository's wrappers
+- [BZ-4](bazel.md#bz-4-language-rules-are-loaded-from-the-repositorys-wrappers) Language rules are loaded from the repository's wrappers
 - [BZ-5](bazel.md#bz-5-one-formatter-entry-point) One formatter entry point
 - [BZ-6](bazel.md#bz-6-mechanical-build-edits-go-through-buildozer) Mechanical BUILD edits go through buildozer
 - [BZ-7](bazel.md#bz-7-the-output-directory-is-per-platform) The output directory is per platform
@@ -33,11 +33,11 @@ applies. An assessment walks this list top to bottom.
 
 - [RS-1](rust.md#rs-1-crate-names-carry-the-owning-binary-as-a-prefix) Crate names carry the owning binary as a prefix
 - [RS-2](rust.md#rs-2-the-crate-root-is-named-after-the-directory-and-set-explicitly) The crate root is named after the directory and set explicitly
-- [RS-3](rust.md#rs-3-unit-tests-use-crate-never-deps) Unit tests use `crate =`, never `deps =`
+- [RS-3](rust.md#rs-3-unit-tests-use-crate--never-deps-) Unit tests use `crate =`, never `deps =`
 - [RS-4](rust.md#rs-4-tests-start-inline-and-move-out-when-they-outgrow-the-file) Tests start inline and move out when they outgrow the file
 - [RS-5](rust.md#rs-5-standalone-tests-live-in-tests-helpers-in-testutil) Standalone tests live in `tests/`; helpers in `testutil/`
 - [RS-6](rust.md#rs-6-production-code-does-not-panic-on-purpose) Production code does not panic on purpose
-- [RS-7](rust.md#rs-7-lint-levels-live-in-bazelrc-and-dwarnings-stays) Lint levels live in `.bazelrc`, and `-Dwarnings` stays
+- [RS-7](rust.md#rs-7-lint-levels-live-in-bazelrc-and--dwarnings-stays) Lint levels live in `.bazelrc`, and `-Dwarnings` stays
 - [RS-8](rust.md#rs-8-pedantic-is-on-with-an-empty-allow-list) Pedantic is on, with an empty allow-list
 - [RS-9](rust.md#rs-9-documentation-lints-hold-a-quality-bar) Documentation lints hold a quality bar
 - [RS-10](rust.md#rs-10-no-prints-log-through-tracing) No prints; log through `tracing`
@@ -45,7 +45,7 @@ applies. An assessment walks this list top to bottom.
 - [RS-12](rust.md#rs-12-dependencies-are-constructed-once-and-passed-down) Dependencies are constructed once and passed down
 - [RS-13](rust.md#rs-13-configuration-is-a-file-plus-an-environment-layer) Configuration is a file plus an environment layer
 - [RS-14](rust.md#rs-14-the-runtime-is-built-in-the-library) The runtime is built in the library
-- [RS-15](rust.md#rs-15-third-party-crates-are-crate-spec-entries) Third-party crates are `crate.spec` entries
+- [RS-15](rust.md#rs-15-third-party-crates-are-cratespec-entries) Third-party crates are `crate.spec` entries
 - [RS-16](rust.md#rs-16-editor-support-is-a-generated-index) Editor support is a generated index
 
 ## Python (python.md)
@@ -54,10 +54,10 @@ applies. An assessment walks this list top to bottom.
 - [PY-2](python.md#py-2-targets-come-from-the-wrappers-which-lint-their-own-sources) Targets come from the wrappers, which lint their own sources
 - [PY-3](python.md#py-3-tests-run-under-pytest-beside-the-code) Tests run under pytest, beside the code
 - [PY-4](python.md#py-4-external-state-is-an-argument-subprocesses-go-through-one-seam) External state is an argument; subprocesses go through one seam
-- [PY-5](python.md#py-5-ruff-formats-and-lints-from-select-all) ruff formats and lints from `select = ["ALL"]`
+- [PY-5](python.md#py-5-ruff-formats-and-lints-from-select--all) ruff formats and lints from `select = ["ALL"]`
 - [PY-6](python.md#py-6-every-function-is-annotated-and-mypy-strict-verifies-it) Every function is annotated and mypy strict verifies it
 - [PY-7](python.md#py-7-the-gates-are-the-same-commands-as-for-every-language) The gates are the same commands as for every language
-- [PY-8](python.md#py-8-programs-run-through-bazel-and-read-bazel-s-environment) Programs run through Bazel and read Bazel's environment
+- [PY-8](python.md#py-8-programs-run-through-bazel-and-read-bazels-environment) Programs run through Bazel and read Bazel's environment
 - [PY-9](python.md#py-9-dependencies-enter-through-the-lock) Dependencies enter through the lock
 
 ## TypeScript (typescript.md)
@@ -77,8 +77,8 @@ applies. An assessment walks this list top to bottom.
 
 - [PB-1](proto.md#pb-1-protos-live-in-proto-at-their-package-path) Protos live in `proto/`, at their package path
 - [PB-2](proto.md#pb-2-code-is-generated-at-build-time-and-never-checked-in) Code is generated at build time and never checked in
-- [PB-3](proto.md#pb-3-rust-codegen-sits-beside-the-proto-library-on-the-repository-s-own-toolchain) Rust codegen sits beside the `proto_library`, on the repository's own toolchain
-- [PB-4](proto.md#pb-4-typescript-codegen-lives-under-typescript-proto-mirroring-the-import-path) TypeScript codegen lives under `typescript/proto/`, mirroring the import path
+- [PB-3](proto.md#pb-3-rust-codegen-sits-beside-the-proto_library-on-the-repositorys-own-toolchain) Rust codegen sits beside the `proto_library`, on the repository's own toolchain
+- [PB-4](proto.md#pb-4-typescript-codegen-lives-under-typescriptproto-mirroring-the-import-path) TypeScript codegen lives under `typescript/proto/`, mirroring the import path
 - [PB-5](proto.md#pb-5-generated-types-stop-at-the-edge) Generated types stop at the edge
 - [PB-6](proto.md#pb-6-contract-style) Contract style
 - [PB-7](proto.md#pb-7-the-runtime-and-shutdown-are-explicit) The runtime and shutdown are explicit
@@ -94,7 +94,7 @@ applies. An assessment walks this list top to bottom.
 
 ## Gates (gates.md)
 
-- [GA-1](gates.md#ga-1-bazel-build-and-bazel-test-are-the-gate) `bazel build //...` and `bazel test //...` are the gate
+- [GA-1](gates.md#ga-1-bazel-build--and-bazel-test--are-the-gate) `bazel build //...` and `bazel test //...` are the gate
 - [GA-2](gates.md#ga-2-formatting-happens-at-edit-time-the-gates-only-confirm-it) Formatting happens at edit time; the gates only confirm it
 - [GA-3](gates.md#ga-3-the-patch-coverage-gate-runs-once-per-change-before-merge) The patch-coverage gate runs once per change, before merge
 - [GA-4](gates.md#ga-4-version-control-hooks-are-shims-checked-in-and-optional) Version-control hooks are shims, checked in, and optional
@@ -107,7 +107,7 @@ applies. An assessment walks this list top to bottom.
 - [AU-2](automation.md#au-2-shell-survives-only-where-it-is-short-precise-and-human-readable) Shell survives only where it is short, precise and human readable
 - [AU-3](automation.md#au-3-one-operator-command-with-nouns-and-verbs) One operator command with nouns and verbs
 - [AU-4](automation.md#au-4-a-nested-bazel-run-is-recorded-in-the-docstring) A nested `bazel run` is recorded in the docstring
-- [AU-5](automation.md#au-5-programs-read-bazel-s-environment-never-version-control) Programs read Bazel's environment, never version control
+- [AU-5](automation.md#au-5-programs-read-bazels-environment-never-version-control) Programs read Bazel's environment, never version control
 
 ## Dependencies and version pins (dependencies.md)
 
@@ -116,11 +116,11 @@ applies. An assessment walks this list top to bottom.
 - [DE-3](dependencies.md#de-3-pinned-sets-move-together-or-not-at-all) Pinned sets move together or not at all
 - [DE-4](dependencies.md#de-4-routine-bumps-and-proposals) Routine bumps and proposals
 - [DE-5](dependencies.md#de-5-derived-files-and-prose-move-with-the-pin) Derived files and prose move with the pin
-- [DE-6](dependencies.md#de-6-version-discovery-is-a-tool-s-job-the-routine-is-local) Version discovery is a tool's job; the routine is local
+- [DE-6](dependencies.md#de-6-version-discovery-is-a-tools-job-the-routine-is-local) Version discovery is a tool's job; the routine is local
 
 ## Agent setup (agent-setup.md)
 
-- [AG-1](agent-setup.md#ag-1-agents-md-is-the-one-rules-file) `AGENTS.md` is the one rules file
+- [AG-1](agent-setup.md#ag-1-agentsmd-is-the-one-rules-file) `AGENTS.md` is the one rules file
 - [AG-2](agent-setup.md#ag-2-formatting-runs-on-every-edit-through-a-hook) Formatting runs on every edit through a hook
 - [AG-3](agent-setup.md#ag-3-everyday-commands-are-pre-approved-risky-verbs-ask) Everyday commands are pre-approved; risky verbs ask
 - [AG-4](agent-setup.md#ag-4-two-project-skills-encode-the-recipes-that-are-easy-to-get-wrong) Two project skills encode the recipes that are easy to get wrong

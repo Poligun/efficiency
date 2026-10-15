@@ -154,11 +154,9 @@ def conventions_index(docs: list[str]) -> str:
     return "\n".join(lines)
 
 
-def write(target: str, relative: str, content: bytes, force: bool, dry_run: bool, executable: bool) -> str:
+def write(target: str, relative: str, content: bytes, dry_run: bool, executable: bool) -> str:
     destination = os.path.join(target, relative)
     exists = os.path.exists(destination)
-    if exists and not force:
-        raise ApplyError(f"refusing to overwrite {relative}; pass --force to replace existing files")
     if not dry_run:
         os.makedirs(os.path.dirname(destination), exist_ok=True)
         with open(destination, "wb") as handle:
@@ -169,8 +167,9 @@ def write(target: str, relative: str, content: bytes, force: bool, dry_run: bool
     return f"{'replace' if exists else 'write'}  {relative}"
 
 
-def apply(target: str, selected: set[str], values: dict[str, str], force: bool, dry_run: bool) -> list[str]:
-    actions = []
+def render_all(selected: set[str], values: dict[str, str]) -> list[tuple[str, bytes, bool]]:
+    """(target-relative path, content, executable) for every file an apply writes."""
+    files: list[tuple[str, bytes, bool]] = []
     for source, relative in plan(selected):
         if is_text(source):
             with open(source, encoding="utf-8") as handle:
@@ -178,18 +177,32 @@ def apply(target: str, selected: set[str], values: dict[str, str], force: bool, 
         else:
             with open(source, "rb") as handle:
                 content = handle.read()
-        executable = os.path.basename(source) in EXECUTABLE_NAMES
-        actions.append(write(target, relative, content, force, dry_run, executable))
+        files.append((relative, content, os.path.basename(source) in EXECUTABLE_NAMES))
     docs = conventions(selected)
     for doc in docs:
         with open(os.path.join(REFERENCES, doc), encoding="utf-8") as handle:
             content = render(handle.read(), selected, values).encode("utf-8")
-        actions.append(write(target, os.path.join("docs", "conventions", doc), content, force, dry_run, False))
-    actions.append(write(
-        target, os.path.join("docs", "conventions", "README.md"),
-        conventions_index(docs).encode("utf-8"), force, dry_run, False,
-    ))
-    return actions
+        files.append((os.path.join("docs", "conventions", doc), content, False))
+    files.append((os.path.join("docs", "conventions", "README.md"), conventions_index(docs).encode("utf-8"), False))
+    return files
+
+
+def apply(target: str, selected: set[str], values: dict[str, str], force: bool, dry_run: bool) -> list[str]:
+    """Renders everything first, refuses on any collision, then writes.
+
+    Rendering and the collision check both finish before the first write,
+    so a refused apply leaves the target exactly as it was and a retry
+    does not collide with files a partial run installed.
+    """
+    files = render_all(selected, values)
+    if not force:
+        collisions = [relative for relative, _, _ in files if os.path.exists(os.path.join(target, relative))]
+        if collisions:
+            listed = "\n  ".join(collisions[:10]) + ("\n  ..." if len(collisions) > 10 else "")
+            raise ApplyError(
+                f"refusing to overwrite {len(collisions)} existing file(s); pass --force to replace them:\n  {listed}",
+            )
+    return [write(target, relative, content, dry_run, executable) for relative, content, executable in files]
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -207,6 +220,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         parser.error("--name must be lowercase letters, digits and underscores, starting with a letter")
     if not re.fullmatch(r"[A-Z][A-Z0-9_]*", args.env_prefix):
         parser.error("--env-prefix must be uppercase letters, digits and underscores")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]*", args.main_branch):
+        parser.error("--main-branch is substituted into a Starlark string; letters, digits, '.', '_', '/' and '-' only")
     return args
 
 

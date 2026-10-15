@@ -124,3 +124,8 @@ The serve loop runs on a runtime the app crate builds (rust.md RS-14):
 bind first, then serve with the signal handlers installed and in-flight
 requests drained on shutdown. A health service and reflection are served
 beside the API, each switchable off in the configuration.
+
+**Applies when.** The repository serves the API. The bootstrap templates
+stop at the codegen and a handler with a unit test; they ship no server
+binary, so this rule describes the shape the first server takes, not a
+target that exists on day one.

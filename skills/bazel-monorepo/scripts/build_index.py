@@ -48,6 +48,14 @@ def rules(path: str) -> list[tuple[str, str]]:
     return found
 
 
+def slug(heading: str) -> str:
+    """The anchor a Markdown renderer gives a heading: lowercase, punctuation
+    dropped, spaces to hyphens, the way GitHub and most renderers do it."""
+    text = heading.strip().lower()
+    text = re.sub(r"[^\w\s-]", "", text)
+    return re.sub(r"\s", "-", text)
+
+
 def render() -> str:
     lines = [
         "# Every rule at a glance",
@@ -62,8 +70,7 @@ def render() -> str:
         lines.append(f"## {title} ({document})")
         lines.append("")
         for rule_id, rule_title in rules(os.path.join(REFERENCES, document)):
-            anchor = f"{rule_id.lower()}-{re.sub(r'[^a-z0-9]+', '-', rule_title.lower()).strip('-')}"
-            lines.append(f"- [{rule_id}]({document}#{anchor}) {rule_title}")
+            lines.append(f"- [{rule_id}]({document}#{slug(f'{rule_id}. {rule_title}')}) {rule_title}")
         lines.append("")
     return "\n".join(lines)
 

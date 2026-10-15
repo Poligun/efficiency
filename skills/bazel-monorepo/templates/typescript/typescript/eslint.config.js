@@ -89,6 +89,9 @@ export default tseslint.config(
     files: ["**/*.config.{js,ts}"],
     ...tseslint.configs.disableTypeChecked,
     rules: {
+      // The preset's rule-disables must survive this object's own `rules`,
+      // or the inherited type-aware rules run without type information.
+      ...tseslint.configs.disableTypeChecked.rules,
       "import-x/no-default-export": "off",
     },
   },

@@ -118,6 +118,65 @@ class ApplyTest(unittest.TestCase):
             self.assertEqual(os.listdir(target), [])
 
 
+class PreflightTest(unittest.TestCase):
+    def test_collision_leaves_the_target_untouched(self) -> None:
+        with tempfile.TemporaryDirectory() as target:
+            with open(os.path.join(target, "AGENTS.md"), "w", encoding="utf-8") as handle:
+                handle.write("mine\n")
+            with self.assertRaises(apply.ApplyError) as refused:
+                apply.apply(target, set(), VALUES, force=False, dry_run=False)
+            self.assertIn("AGENTS.md", str(refused.exception))
+            self.assertEqual(os.listdir(target), ["AGENTS.md"])
+
+    def test_main_branch_is_validated(self) -> None:
+        with self.assertRaises(SystemExit):
+            apply.parse_args(["--target", "t", "--name", "n", "--env-prefix", "N", "--main-branch", 'a"b'])
+        args = apply.parse_args(["--target", "t", "--name", "n", "--env-prefix", "N", "--main-branch", "release/1.0"])
+        self.assertEqual(args.main_branch, "release/1.0")
+
+
+class ScrubTest(unittest.TestCase):
+    def test_explicit_missing_list_is_an_error(self) -> None:
+        with self.assertRaises(scrub_check.MissingTerms):
+            scrub_check.terms_file("/nonexistent/terms.txt")
+        with self.assertRaises(scrub_check.MissingTerms):
+            scrub_check.terms_file(None, "/nonexistent/terms.txt")
+
+    def test_home_paths_of_every_shape_are_caught(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            # Built from parts so this file's own source does not carry a path
+            # the check would flag.
+            lines = [
+                "a " + "/".join(["", "home", "dev42", "x"]),
+                "b " + "/".join(["", "Users", "j.doe-x", "y"]),
+                "c " + "\\".join(["C:", "Users", "dev", "z"]),
+                "d " + "/".join(["", "home", ""]),
+            ]
+            with open(os.path.join(root, "note.md"), "w", encoding="utf-8") as handle:
+                handle.write("\n".join(lines) + "\n")
+            hits = scrub_check.scan(root, [])
+            self.assertEqual([hit[1] for hit in hits], [1, 2, 3])
+
+    def test_private_terms_are_found_in_any_file_including_the_checker(self) -> None:
+        with tempfile.TemporaryDirectory() as root:
+            with open(os.path.join(root, "x.md"), "w", encoding="utf-8") as handle:
+                handle.write("the Zebraquux project\n")
+            self.assertEqual([hit[2] for hit in scrub_check.scan(root, ["zebraquux"])], ["Zebraquux"])
+        own = os.path.basename(scrub_check.__file__)
+        self.assertTrue(
+            any(hit[0] == own for hit in scrub_check.scan(os.path.dirname(scrub_check.__file__), ["absolute home path"])),
+        )
+
+
+class IndexTest(unittest.TestCase):
+    def test_slugs_match_a_markdown_renderer(self) -> None:
+        self.assertEqual(build_index.slug("BZ-4. Language rules are loaded from the repository's wrappers"),
+                         "bz-4-language-rules-are-loaded-from-the-repositorys-wrappers")
+        self.assertEqual(build_index.slug("AG-1. `AGENTS.md` is the one rules file"), "ag-1-agentsmd-is-the-one-rules-file")
+        self.assertEqual(build_index.slug("GA-1. `bazel build //...` and `bazel test //...` are the gate"),
+                         "ga-1-bazel-build--and-bazel-test--are-the-gate")
+
+
 class PackageTest(unittest.TestCase):
     def test_rule_index_is_current(self) -> None:
         with open(build_index.INDEX, encoding="utf-8") as handle:

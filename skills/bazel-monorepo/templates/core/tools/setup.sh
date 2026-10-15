@@ -2,7 +2,7 @@
 # One-time repo setup. Safe to re-run. Shell is admitted here because the
 # script is short and mostly configuration (docs/conventions/automation.md).
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
+cd "$(dirname "$0")/.."
 {{#if hooks}}
 
 git config core.hooksPath githooks

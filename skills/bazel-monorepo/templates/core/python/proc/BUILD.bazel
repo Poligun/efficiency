@@ -1,0 +1,17 @@
+load("//tools/python:defs.bzl", "py_library", "py_test")
+
+# The process seam every program's verbs run through
+# (docs/conventions/python.md): commands are data, and one function
+# executes them. It sits at the top of python/ because more than one
+# program may need it.
+py_library(
+    name = "proc",
+    srcs = ["proc.py"],
+    visibility = ["//python:__subpackages__"],
+)
+
+py_test(
+    name = "proc_test",
+    srcs = ["proc_test.py"],
+    deps = [":proc"],
+)

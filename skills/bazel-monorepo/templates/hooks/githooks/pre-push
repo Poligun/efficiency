@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# The full gate. Checks the working tree, not the exact commits being pushed.
+# A shim by policy (docs/conventions/automation.md).
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+bazel build //...
+bazel test //...

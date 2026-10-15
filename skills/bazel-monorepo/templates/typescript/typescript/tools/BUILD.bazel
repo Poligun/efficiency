@@ -1,0 +1,102 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@npm//typescript:@bufbuild/protoc-gen-es/package_json.bzl", gen_es = "bin")
+load("//tools/typescript:defs.bzl", "ts_library", "ts_test")
+
+# Programs the TypeScript wrappers in //tools/typescript run from inside the
+# JavaScript tree. They live here rather than beside the wrappers because
+# Node resolves a script's imports by walking up from the script's own
+# directory, and //typescript:node_modules is the only place packages are
+# linked. They are JavaScript, so Node runs them as they are,
+# and ts_library with allow_js checks them through their JSDoc types.
+
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    deps = ["//typescript:tsconfig_base"],
+)
+
+# The Vitest launcher behind ts_test: runs one target's test files and,
+# under `bazel coverage`, writes the lcov report where Bazel's merger reads
+# it. The logic is vitest_run; this is the entry point.
+ts_library(
+    name = "vitest_runner",
+    srcs = ["vitest_runner.mjs"],
+    allow_js = True,
+    tsconfig = ":tsconfig",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":vitest_run",
+        "//typescript:node_modules/@types/node",
+        "//typescript:node_modules/@vitest/coverage-v8",
+        "//typescript:node_modules/vitest",
+    ],
+)
+
+# The launcher's logic, apart from the entry point so its test drives it
+# without starting Vitest.
+ts_library(
+    name = "vitest_run",
+    srcs = ["vitest_run.mjs"],
+    allow_js = True,
+    tsconfig = ":tsconfig",
+    deps = ["//typescript:node_modules/@types/node"],
+)
+
+# The format check behind the wrappers' <name>_format_test: Prettier through
+# its API, so sandboxed (symlinked) inputs are read like any file.
+ts_library(
+    name = "prettier_check",
+    srcs = ["prettier_check.mjs"],
+    allow_js = True,
+    tsconfig = ":tsconfig",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//typescript:node_modules/@types/node",
+        "//typescript:node_modules/prettier",
+    ],
+)
+
+# The tools' own tests: Node environment, the programs imported in-process
+# so their lines count toward coverage.
+js_library(
+    name = "vite_config",
+    srcs = ["vite.config.ts"],
+    deps = ["//typescript:node_modules/vitest"],
+)
+
+ts_test(
+    name = "prettier_check_test",
+    srcs = ["prettier_check_test.ts"],
+    allow_js = True,
+    config = ":vite_config",
+    data = ["//typescript:prettier_config"],
+    tsconfig = ":tsconfig",
+    deps = [
+        ":prettier_check",
+        "//typescript:node_modules/@types/node",
+        "//typescript:node_modules/prettier",
+        "//typescript:node_modules/vitest",
+    ],
+)
+
+ts_test(
+    name = "vitest_run_test",
+    srcs = ["vitest_run_test.ts"],
+    allow_js = True,
+    config = ":vite_config",
+    tsconfig = ":tsconfig",
+    deps = [
+        ":vitest_run",
+        "//typescript:node_modules/@types/node",
+        "//typescript:node_modules/vitest",
+    ],
+)
+
+# The protoc plugin the ts_proto_library rule runs (tools/typescript/proto.bzl):
+# protoc-gen-es v2, which generates the messages and the Connect service
+# descriptors in one file.
+gen_es.protoc_gen_es_binary(
+    name = "protoc_gen_es",
+    visibility = ["//visibility:public"],
+)

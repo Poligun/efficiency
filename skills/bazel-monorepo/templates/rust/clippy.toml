@@ -1,0 +1,11 @@
+# Clippy options. The lint levels themselves are not set here; clippy.toml cannot
+# do that. They live in .bazelrc as -D flags.
+# See docs/conventions/rust.md.
+#
+# Tests are allowed to be panicky. A failed unwrap in a test is just a test
+# failure, which is the point.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-indexing-slicing-in-tests = true
+allow-print-in-tests = true

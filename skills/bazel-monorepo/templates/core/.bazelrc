@@ -1,0 +1,123 @@
+# Recommended flags from bazelrc-preset.bzl, generated to match the Bazel
+# version in .bazelversion. Regenerate with: bazel run //tools:preset.update
+import %workspace%/tools/preset.bazelrc
+
+# Keep outputs in a platform specific directory so switching platforms does not
+# wipe and rebuild everything.
+common --experimental_platform_in_output_dir
+
+# Show the failing command line in full when something breaks.
+build --verbose_failures
+test --verbose_failures
+{{#if rust}}
+
+# Clippy policy (docs/conventions/rust.md). Applies to every clippy action,
+# so a new target cannot forget it. clippy.toml holds lint options (the
+# test exemptions); it cannot set lint levels, which live here as flags.
+build --@rules_rust//rust/settings:clippy.toml=//:clippy.toml
+
+# rustfmt reads one file from both paths: rules_rust's rustfmt_test targets
+# and aspect get it through this flag, and upstream rustfmt behind
+# bazel run //:format finds the same file by searching upward.
+build --@rules_rust//rust/settings:rustfmt.toml=//:rustfmt.toml
+
+# -Dwarnings must stay. rules_rust only adds it for you when you pass no clippy
+# flags of your own; the moment we add one, every other lint quietly stops being
+# fatal unless we ask for it here.
+build --@rules_rust//rust/settings:clippy_flag=-Dwarnings
+
+# No hand-written panics in production code. Tests are exempt via clippy.toml.
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::unwrap_used
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::expect_used
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::panic
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::todo
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::unimplemented
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::unreachable
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::indexing_slicing
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::panic_in_result_fn
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::exit
+
+# Programs report through tracing, not prints. A binary's main.rs carries the
+# one allowed print, for its output or its final error, with an #[allow]
+# naming the reason.
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::print_stdout
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::print_stderr
+
+# Pedantic, with -Dwarnings above making every firing lint fatal. The
+# allow-list is empty on purpose: fix what pedantic flags, in tests too, and
+# fix the lints a toolchain bump brings rather than allowing them away.
+build --@rules_rust//rust/settings:clippy_flag=-Wclippy::pedantic
+
+# The one nursery pick: pushes back on monolithic functions, the main
+# agent failure mode. Default threshold. The rest of nursery stays off;
+# adopt its lints one at a time, if ever.
+build --@rules_rust//rust/settings:clippy_flag=-Wclippy::cognitive_complexity
+
+# Prose rules turned into lints: every #[allow] carries a reason, no mod.rs
+# files, no leftover dbg!.
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::allow_attributes_without_reason
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::mod_module_files
+build --@rules_rust//rust/settings:clippy_flag=-Dclippy::dbg_macro
+{{/if}}
+
+# Lock the whole build to one Python version, the one MODULE.bazel registers
+# from python-build-standalone. Without this, toolchain resolution can fall
+# back to the default that rules_python (a transitive dependency of rules_py)
+# registers, and the venv would not match uv.lock's requires-python. Bump
+# together with interpreters.toolchain in MODULE.bazel and requires-python
+# in pyproject.toml.
+common --@aspect_rules_py//py:python_version=3.14
+
+# Coverage (docs/conventions/gates.md): merge per-test lcov files into one
+# report at bazel-out/_coverage/_coverage_report.dat, and instrument only
+# the first-party trees so third-party code neither slows the run nor
+# pollutes the report. The coverage gate relies on both.
+coverage --combined_report=lcov
+{{#if rust typescript}}
+coverage --instrumentation_filter=//rust[/:],//python[/:],//typescript[/:]
+{{/if}}
+{{#if rust !typescript}}
+coverage --instrumentation_filter=//rust[/:],//python[/:]
+{{/if}}
+{{#if !rust typescript}}
+coverage --instrumentation_filter=//python[/:],//typescript[/:]
+{{/if}}
+{{#if !rust !typescript}}
+coverage --instrumentation_filter=//python[/:]
+{{/if}}
+
+# Only tests and their deps get built under coverage: a cross-compiled
+# target (a container image's binary) has no profiling runtime in the
+# pinned toolchain, and its coverage would be meaningless anyway.
+coverage --build_tests_only
+{{#if rust}}
+
+# Lint aspects, off by default because they slow down local iteration.
+# The per-target clippy and rustfmt_test targets are the normal gate; these
+# configs are the whole-repo escape hatch.
+build:rustfmt --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect
+build:rustfmt --output_groups=+rustfmt_checks
+
+build:clippy --aspects=@rules_rust//rust:defs.bzl%rust_clippy_aspect
+build:clippy --output_groups=+clippy_checks
+{{/if}}
+
+# ruff over every tagged filegroup and every venv-configured binary or test
+# at once. The per-target *_ruff_test targets are the normal gate.
+build:ruff --aspects=//tools/python:linters.bzl%ruff
+build:ruff --@aspect_rules_lint//lint:fail_on_violation
+{{#if typescript}}
+
+# ESLint over every ts_library and ts_test at once. The per-target
+# *_eslint_test targets are the normal gate.
+build:eslint --aspects=//tools/typescript:linters.bzl%eslint
+build:eslint --@aspect_rules_lint//lint:fail_on_violation
+{{/if}}
+
+# Aspect's rulesets (rules_py, rules_lint) report which Bazel and module
+# versions are in use unless told not to. Nothing about this repo leaves the
+# machine without a decision, so opt out.
+common --repo_env=DO_NOT_TRACK=1
+
+# Personal, machine local overrides. Not checked in.
+try-import %workspace%/user.bazelrc

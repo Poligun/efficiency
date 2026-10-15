@@ -1,0 +1,44 @@
+# The hello.v1 proto package and its generated code, side by side
+# (docs/conventions/proto.md). The .proto file is the only source of truth;
+# nothing generated is checked in.
+
+{{#if rust}}
+load("@protobuf//bazel:proto_descriptor_set.bzl", "proto_descriptor_set")
+{{/if}}
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
+{{#if rust}}
+load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
+{{/if}}
+
+proto_library(
+    name = "greeting_proto",
+    srcs = ["greeting.proto"],
+    # Import path is "hello/v1/greeting.proto", matching the package, not
+    # "proto/hello/v1/greeting.proto".
+    strip_import_prefix = "/proto",
+{{#if typescript}}
+    # The TypeScript codegen sits under typescript/proto, in the package
+    # that mirrors this one.
+    visibility = ["//typescript/proto/hello/v1:__pkg__"],
+{{/if}}
+)
+{{#if rust}}
+
+# The generated crate is named after the proto_library target: Rust code
+# imports greeting_proto::hello::v1::... Generated code is exempt from the
+# lint-targets rule. Visibility is the edge crate alone: proto types stop
+# at the API edge.
+rust_prost_library(
+    name = "greeting_rust_prost",
+    proto = ":greeting_proto",
+    visibility = ["//rust/hello/api:__subpackages__"],
+)
+
+# Merged FileDescriptorSet of greeting_proto and everything it imports, for
+# a server to embed and serve through gRPC reflection.
+proto_descriptor_set(
+    name = "greeting_descriptor_set",
+    visibility = ["//rust/hello:__subpackages__"],
+    deps = [":greeting_proto"],
+)
+{{/if}}

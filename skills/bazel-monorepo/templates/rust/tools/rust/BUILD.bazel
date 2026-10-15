@@ -1,0 +1,4 @@
+# Rust wiring. defs.bzl exports the rust_library, rust_test and
+# rust_binary every package under rust/ loads; each is a symbolic macro over
+# the rules_rust rule of the same name that also declares the clippy and
+# rustfmt targets over its own crate. This package owns no targets.

@@ -1,0 +1,27 @@
+load("//tools/typescript:defs.bzl", "ts_library", "ts_test")
+
+# The app's API edge: builds the generated request messages. App code
+# imports generated code by relative path from typescript/proto.
+ts_library(
+    name = "api",
+    srcs = ["api.ts"],
+    tsconfig = "//typescript/web:tsconfig",
+    visibility = ["//typescript/web:__subpackages__"],
+    deps = [
+        "//typescript:node_modules/@bufbuild/protobuf",
+        "//typescript/proto/hello/v1:greeting",
+    ],
+)
+
+ts_test(
+    name = "api_test",
+    srcs = ["api_test.ts"],
+    config = "//typescript/web:vite_config",
+    tsconfig = "//typescript/web:tsconfig",
+    deps = [
+        ":api",
+        "//typescript:node_modules/@bufbuild/protobuf",
+        "//typescript:node_modules/vitest",
+        "//typescript/proto/hello/v1:greeting",
+    ],
+)

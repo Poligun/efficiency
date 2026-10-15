@@ -1,0 +1,22 @@
+load("//tools/rust:defs.bzl", "rust_library", "rust_test")
+
+# The composition root: constructs what the program needs and passes it
+# down as arguments. Crate names carry the owning binary as a prefix; the
+# root file is named after the directory.
+rust_library(
+    name = "hello_app",
+    srcs = glob(["*.rs"]),
+    crate_root = "app.rs",
+    visibility = ["//rust/hello:__subpackages__"],
+    deps = [
+        "//rust/hello/greeting:hello_greeting",
+        "@crates//tracing",
+    ],
+)
+
+# crate =, never deps =: the test recompiles the library with --test, which
+# is what makes #[cfg(test)] code exist.
+rust_test(
+    name = "hello_app_test",
+    crate = ":hello_app",
+)

@@ -1,0 +1,4 @@
+.claude
+{{#if typescript}}
+typescript/node_modules
+{{/if}}

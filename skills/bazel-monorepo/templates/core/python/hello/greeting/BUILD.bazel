@@ -1,0 +1,15 @@
+load("//tools/python:defs.bzl", "py_library", "py_test")
+
+# One library per module, named with the owning program as prefix. The
+# wrapper declares the ruff, format and mypy tests over these files.
+py_library(
+    name = "hello_greeting",
+    srcs = ["greeting.py"],
+    visibility = ["//python/hello:__subpackages__"],
+)
+
+py_test(
+    name = "hello_greeting_test",
+    srcs = ["greeting_test.py"],
+    deps = [":hello_greeting"],
+)

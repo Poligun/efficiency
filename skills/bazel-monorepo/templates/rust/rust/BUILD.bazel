@@ -1,0 +1,2 @@
+# rust/ is a plain namespace (docs/conventions/rust.md): each binary owns a
+# subdirectory, and this package holds no targets.

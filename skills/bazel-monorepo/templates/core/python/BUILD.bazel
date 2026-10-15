@@ -1,0 +1,2 @@
+# python/ is a plain namespace (docs/conventions/python.md): each program
+# owns a subdirectory, and this package holds no targets.

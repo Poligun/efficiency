@@ -1,0 +1,83 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//typescript:knip/package_json.bzl", knip_bin = "bin")
+
+# The root of the JavaScript tree (docs/conventions/typescript.md). One
+# package.json and one pnpm-lock.yaml serve every package under
+# typescript/; the hub links each dependency as
+# //typescript:node_modules/<package>. The configuration files below are
+# shared by the tools under //tools/typescript, so they are exported here
+# rather than duplicated per package.
+npm_link_all_packages(name = "node_modules")
+
+exports_files(
+    [
+        "eslint.config.js",
+        "knip.jsonc",
+        "package.json",
+        "prettier.config.js",
+        "tsconfig.base.json",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# The ESLint configuration as a library, so the plugins it imports travel
+# with it into the lint aspect's sandbox (the rules_lint pattern).
+js_library(
+    name = "eslint_config",
+    srcs = ["eslint.config.js"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":node_modules/@eslint/js",
+        # typescript-eslint brings the parser as its own dependency, but
+        # eslint-plugin-import-x resolves it by name from the top level to
+        # parse imported modules, so it is a direct dependency as well.
+        ":node_modules/@typescript-eslint/parser",
+        ":node_modules/eslint-config-prettier",
+        ":node_modules/eslint-import-resolver-typescript",
+        ":node_modules/eslint-plugin-import-x",
+        ":node_modules/eslint-plugin-jsx-a11y",
+        ":node_modules/eslint-plugin-react-hooks",
+        ":node_modules/typescript-eslint",
+    ],
+)
+
+js_library(
+    name = "prettier_config",
+    srcs = ["prettier.config.js"],
+    visibility = ["//visibility:public"],
+)
+
+# package.json as a library, so the lint action's sandbox holds a copy next
+# to node_modules: eslint-plugin-import-x classifies each import by walking
+# up from the linted file to the nearest package.json and crashes on none.
+js_library(
+    name = "package_json",
+    srcs = ["package.json"],
+    visibility = ["//visibility:public"],
+)
+
+# The shared compiler settings every app's tsconfig.json extends. A ts_config
+# target, so an extending config in another package can name it and rules_ts
+# carries the file into the type-check sandbox.
+ts_config(
+    name = "tsconfig_base",
+    src = "tsconfig.base.json",
+    visibility = ["//typescript:__subpackages__"],
+)
+
+# knip finds exports nothing imports and dependencies nothing uses, over the
+# whole tree at once: bazel run //typescript:knip. It runs against the source
+# tree rather than as a test because it reasons over the module graph, and
+# under a test's runfiles it resolves no import (every file there is a
+# symlink). It reads packages through the typescript/node_modules link that
+# tools/setup.sh creates. ignoreDependencies in knip.jsonc names the packages
+# only Bazel targets consume.
+knip_bin.knip_binary(
+    name = "knip",
+    fixed_args = [
+        "--directory",
+        "$$BUILD_WORKSPACE_DIRECTORY/typescript",
+    ],
+)

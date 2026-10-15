@@ -1,0 +1,215 @@
+module(name = "{{name}}")
+
+# Every version below is a pin the renovation routine moves
+# (docs/conventions/dependencies.md). Pinned sets, versions that move
+# together or not at all, are named where they sit.
+
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
+bazel_dep(name = "aspect_rules_lint", version = "2.9.0")
+bazel_dep(name = "bazelrc-preset.bzl", version = "1.9.2")
+bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.4")
+bazel_dep(name = "buildozer", version = "8.5.1")
+bazel_dep(name = "platforms", version = "1.1.0")
+
+# Not used directly. aspect_rules_lint's format runner is a Go binary, and
+# the rules_go version it pulls in transitively predates Bazel 9's removal
+# of the native CcInfo symbol, so a tree with no other ruleset lifting the
+# version fails to analyze the format tests. Lifted here instead.
+bazel_dep(name = "rules_go", version = "0.59.0")
+{{#if proto}}
+bazel_dep(name = "protobuf", version = "35.1")
+{{/if}}
+{{#if rust}}
+bazel_dep(name = "rules_rust", version = "0.71.3")
+{{/if}}
+{{#if proto rust}}
+bazel_dep(name = "rules_rust_prost", version = "0.71.3")
+{{/if}}
+bazel_dep(name = "toolchains_llvm", version = "1.10.0")
+
+# The one C toolchain (docs/conventions/bazel.md): clang from toolchains_llvm
+# plus a pinned sysroot per Linux target, so a fresh Linux machine needs no
+# system compiler, libc headers or CRT objects. Rust links with it, and the
+# format entry point's launcher (rules_multirun) needs a C toolchain to
+# resolve even on a tree with no Rust, so it is part of the core. macOS
+# hosts use the host SDK (Xcode Command Line Tools) and no sysroot entry.
+llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
+llvm.toolchain(llvm_version = "20.1.8")
+llvm.sysroot(
+    label = "@org_chromium_sysroot_linux_x64//sysroot",
+    targets = ["linux-x86_64"],
+)
+llvm.sysroot(
+    label = "@org_chromium_sysroot_linux_arm64//sysroot",
+    targets = ["linux-aarch64"],
+)
+use_repo(llvm, "llvm_toolchain")
+
+register_toolchains("@llvm_toolchain//:all")
+
+sysroot = use_repo_rule("@toolchains_llvm//toolchain:sysroot.bzl", "sysroot")
+
+sysroot(
+    name = "org_chromium_sysroot_linux_x64",
+    sha256 = "84656a6df544ecef62169cfe3ab6e41bb4346a62d3ba2a045dc5a0a2ecea94a3",
+    urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_amd64_sysroot.tar.xz"],
+)
+
+sysroot(
+    name = "org_chromium_sysroot_linux_arm64",
+    sha256 = "e39b700d8858d18868544c8c84922f6adfa8419f3f42471b92024ba38eff7aca",
+    urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_arm64_sysroot.tar.xz"],
+)
+{{#if rust}}
+
+# The Rust toolchain. The edition is repeated in rustfmt.toml; move the two
+# together. extra_target_triples lists the platforms a container image or a
+# cross build may target.
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2024",
+    extra_target_triples = [
+        "aarch64-unknown-linux-gnu",
+        "x86_64-unknown-linux-gnu",
+    ],
+    versions = ["1.97.1"],
+)
+
+# Third-party crates, in crate_universe's direct-dependency mode: one
+# crate.spec per crate, sorted by package, referenced as @crates//<package>.
+# There is no Cargo.toml; MODULE.bazel.lock is the lockfile.
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+{{/if}}
+{{#if proto rust}}
+
+# The tonic set: tonic, prost and the protoc-gen plugins generate and consume
+# one wire API and move together, to the versions rules_rust's prost
+# toolchain supports (docs/conventions/proto.md).
+crate.spec(
+    package = "prost",
+    version = "0.13",
+)
+crate.spec(
+    package = "prost-types",
+    version = "0.13",
+)
+crate.spec(
+    package = "protoc-gen-prost",
+    version = "0.4",
+)
+crate.annotation(
+    crate = "protoc-gen-prost",
+    gen_binaries = ["protoc-gen-prost"],
+)
+crate.spec(
+    package = "protoc-gen-tonic",
+    version = "0.4",
+)
+crate.annotation(
+    crate = "protoc-gen-tonic",
+    gen_binaries = ["protoc-gen-tonic"],
+)
+crate.spec(
+    default_features = False,
+    features = [
+        "macros",
+        "net",
+        "rt-multi-thread",
+        "signal",
+        "sync",
+        "time",
+    ],
+    package = "tokio",
+    version = "1.39",
+)
+crate.spec(
+    package = "tonic",
+    version = "0.12",
+)
+{{/if}}
+{{#if rust}}
+crate.spec(
+    package = "tracing",
+    version = "0.1",
+)
+crate.from_specs()
+use_repo(crate, "crates")
+{{/if}}
+{{#if proto rust}}
+
+# The prost toolchain in //tools/prost points generated code at the same
+# @crates instance the handlers use; registered here so it outranks the
+# default toolchain rules_rust_prost ships.
+register_toolchains("//tools/prost:prost_toolchain")
+{{/if}}
+
+# Python: the tooling language, always present (docs/conventions/python.md).
+# The interpreter is pinned by release date and version; the version is
+# repeated in .bazelrc (python_version) and pyproject.toml (requires-python).
+# Move the three together, then re-lock.
+bazel_dep(name = "aspect_rules_py", version = "1.12.1")
+
+uv_bin = use_extension("@aspect_rules_py//uv/unstable:extension.bzl", "uv_bin")
+uv_bin.toolchain(version = "0.11.6")
+use_repo(uv_bin, "uv")
+
+register_toolchains("@uv//:all")
+
+interpreters = use_extension("@aspect_rules_py//py/unstable:extension.bzl", "python_interpreters")
+interpreters.configure(releases = ["20260807"])
+interpreters.toolchain(
+    is_default = True,
+    python_version = "3.14",
+)
+use_repo(interpreters, "python_interpreters")
+
+register_toolchains("@python_interpreters//:all")
+
+# One uv lock for the repository: pyproject.toml declares, uv.lock resolves,
+# Bazel builds the packages. Regenerate with: bazel run @uv -- lock
+uv = use_extension("@aspect_rules_py//uv/unstable:extension.bzl", "uv")
+uv.declare_hub(hub_name = "pypi")
+uv.project(
+    hub_name = "pypi",
+    lock = "//:uv.lock",
+    pyproject = "//:pyproject.toml",
+)
+use_repo(uv, "pypi")
+{{#if typescript}}
+
+# TypeScript (docs/conventions/typescript.md): rules_js reads the pnpm lock,
+# rules_ts mirrors the TypeScript version from package.json, rules_nodejs
+# fetches Node. Node and pnpm must exist in the rulesets' mirrored version
+# tables, or the bump needs an integrity value.
+bazel_dep(name = "aspect_rules_js", version = "3.4.1")
+bazel_dep(name = "aspect_rules_ts", version = "3.10.1")
+bazel_dep(name = "rules_nodejs", version = "6.7.5")
+{{/if}}
+{{#if proto typescript}}
+bazel_dep(name = "rules_proto", version = "7.1.0")
+{{/if}}
+{{#if typescript}}
+
+node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
+node.toolchain(node_version = "24.18.0")
+
+pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm", dev_dependency = True)
+pnpm.pnpm(pnpm_version = "10.34.5")
+use_repo(pnpm, "pnpm")
+
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm", dev_dependency = True)
+npm.npm_translate_lock(
+    name = "npm",
+    data = [
+        "//typescript:package.json",
+        "//typescript:pnpm-workspace.yaml",
+    ],
+    pnpm_lock = "//typescript:pnpm-lock.yaml",
+    verify_node_modules_ignored = "//:.bazelignore",
+)
+use_repo(npm, "npm")
+
+typescript = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript", dev_dependency = True)
+typescript.deps(version_from = "//typescript:package.json")
+use_repo(typescript, "npm_typescript")
+{{/if}}

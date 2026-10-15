@@ -1,0 +1,22 @@
+load("//tools/rust:defs.bzl", "rust_library", "rust_test")
+
+# The API edge: implements the generated Greeter service over the domain
+# crate. Generated proto types stop here; internal code speaks the domain's
+# own types, and conversions are free functions in this crate.
+rust_library(
+    name = "hello_api",
+    srcs = glob(["*.rs"]),
+    crate_root = "api.rs",
+    visibility = ["//rust/hello:__subpackages__"],
+    deps = [
+        "//proto/hello/v1:greeting_rust_prost",
+        "//rust/hello/greeting:hello_greeting",
+        "@crates//tonic",
+    ],
+)
+
+rust_test(
+    name = "hello_api_test",
+    crate = ":hello_api",
+    deps = ["@crates//tokio"],
+)

@@ -1,0 +1,40 @@
+# The prost/tonic toolchain used for every rust_prost_library in this repo.
+# It points at @crates so generated code and hand-written code share one
+# instance of prost and tonic; the rules_rust_prost default toolchain would
+# use its own internal copies, and the types would not match ours.
+# See docs/conventions/proto.md.
+
+load("@rules_rust//rust:defs.bzl", "rust_library_group")
+load("@rules_rust_prost//:defs.bzl", "rust_prost_toolchain")
+
+rust_library_group(
+    name = "prost_runtime",
+    deps = ["@crates//prost"],
+)
+
+rust_library_group(
+    name = "tonic_runtime",
+    deps = [
+        ":prost_runtime",
+        "@crates//tonic",
+    ],
+)
+
+rust_prost_toolchain(
+    name = "prost_toolchain_impl",
+    # Well-known types come from prost-types instead of being compiled into
+    # generated crates, so prost-types conversions (like From<SystemTime> for
+    # Timestamp) apply to generated fields.
+    compile_well_known_types = False,
+    prost_plugin = "@crates//protoc-gen-prost__protoc-gen-prost",
+    prost_runtime = ":prost_runtime",
+    prost_types = "@crates//prost-types",
+    tonic_plugin = "@crates//protoc-gen-tonic__protoc-gen-tonic",
+    tonic_runtime = ":tonic_runtime",
+)
+
+toolchain(
+    name = "prost_toolchain",
+    toolchain = ":prost_toolchain_impl",
+    toolchain_type = "@rules_rust_prost//:toolchain_type",
+)

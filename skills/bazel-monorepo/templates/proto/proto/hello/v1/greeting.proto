@@ -1,0 +1,23 @@
+// The hello.v1 package: the directory path below proto/ matches the package,
+// and strip_import_prefix makes the import path "hello/v1/greeting.proto".
+// Conventions: docs/conventions/proto.md.
+syntax = "proto3";
+
+package hello.v1;
+
+// Greets by name.
+service Greeter {
+  // Returns a greeting for the request's name. Fails with INVALID_ARGUMENT
+  // when the name is empty or whitespace only.
+  rpc Greet(GreetRequest) returns (GreetResponse);
+}
+
+message GreetRequest {
+  // Who to greet. Required; surrounding whitespace is ignored.
+  string name = 1;
+}
+
+message GreetResponse {
+  // The greeting line.
+  string greeting = 1;
+}

@@ -1,0 +1,9 @@
+load("//tools/typescript:proto.bzl", "ts_proto_library")
+
+# TypeScript generated from hello/v1/greeting.proto. The package mirrors the
+# proto's import path, which the rule enforces (docs/conventions/proto.md).
+ts_proto_library(
+    name = "greeting",
+    proto = "//proto/hello/v1:greeting_proto",
+    visibility = ["//typescript:__subpackages__"],
+)

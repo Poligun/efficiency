@@ -1,0 +1,11 @@
+load("//tools/python:defs.bzl", "py_library")
+
+# Test helpers for every package that plans commands. testonly, so no
+# production target can depend on the fake runner.
+py_library(
+    name = "proc_testutil",
+    testonly = True,
+    srcs = ["testutil.py"],
+    visibility = ["//python:__subpackages__"],
+    deps = ["//python/proc"],
+)

@@ -1,0 +1,71 @@
+load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
+load("@buildifier_prebuilt//:rules.bzl", "buildifier", "buildifier_test")
+
+# The configuration files the lint and format tools read. pyproject.toml
+# carries the ruff and mypy configuration (docs/conventions/python.md).
+{{#if rust}}
+# clippy.toml and rustfmt.toml are pointed at by the matching
+# --@rules_rust//rust/settings flags in .bazelrc (docs/conventions/rust.md).
+{{/if}}
+exports_files([
+{{#if rust}}
+    "clippy.toml",
+{{/if}}
+    "pyproject.toml",
+{{#if rust}}
+    "rustfmt.toml",
+{{/if}}
+])
+
+# The patch-coverage gate (docs/conventions/gates.md). Run before calling a
+# change ready to merge:
+#
+#   bazel run //:coverage_gate
+#
+# Exit code zero means at least 95% of the changed lines against the main
+# branch are covered by tests. {{ENV_PREFIX}}_SKIP_COVERAGE_GATE=1 skips it:
+# an escape hatch, visible when used, never routine.
+alias(
+    name = "coverage_gate",
+    actual = "//python/coverage_gate:gate",
+)
+
+# One formatter entry point for the languages the repo builds:
+#
+#   bazel run //:format                 # tracked and modified files under the current directory
+#   bazel run //:format -- path/to/file # the named files
+#
+# The edit hook runs the second form. For Starlark this formats only;
+# //:buildifier below also applies buildifier's lint fixes.
+format_multirun(
+    name = "format",
+{{#if typescript}}
+    css = "//tools/typescript:prettier",
+    html = "//tools/typescript:prettier",
+    javascript = "//tools/typescript:prettier",
+{{/if}}
+    python = "@aspect_rules_lint//format:ruff",
+{{#if rust}}
+    rust = "@rules_rust//tools/upstream_wrapper:rustfmt",
+{{/if}}
+    starlark = "@buildifier_prebuilt//:buildifier",
+)
+
+# Rewrites BUILD, .bzl and MODULE.bazel files in place: bazel run //:buildifier
+buildifier(
+    name = "buildifier",
+    exclude_patterns = ["./.git/*"],
+    lint_mode = "fix",
+    mode = "fix",
+)
+
+# Fails if any Bazel file is unformatted or trips a buildifier lint.
+buildifier_test(
+    name = "buildifier_test",
+    size = "small",
+    exclude_patterns = ["./.git/*"],
+    lint_mode = "warn",
+    mode = "diff",
+    no_sandbox = True,
+    workspace = "//:MODULE.bazel",
+)

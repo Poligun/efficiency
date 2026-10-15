@@ -1,0 +1,38 @@
+{
+  // The TypeScript settings every package under typescript/ extends
+  // (docs/conventions/typescript.md). Each package's tsconfig.json adds only
+  // its file list; the strictness lives here once. The flags beyond
+  // `strict` each close a hole `strict` leaves open: an index read that may
+  // be undefined, an optional property assigned `undefined`, an import that
+  // would be elided by one tool and kept by another, and a dotted read of
+  // an index signature. resolveJsonModule is what bundler resolution
+  // assumes anyway, spelled out because the ts_project attribute of the
+  // same name is set (tools/typescript/defs.bzl) and the two must agree.
+  //
+  // The compiler emits declarations only: Vite and Vitest transpile from
+  // the sources themselves, and the .d.ts files are how one ts_library's
+  // type check sees another's exports under Bazel, where each target sees
+  // only its own sources and its dependencies' outputs.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "types": [],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "allowJs": false,
+    "skipLibCheck": true,
+    "declaration": true,
+    "emitDeclarationOnly": true
+  }
+}

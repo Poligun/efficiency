@@ -1,0 +1,9 @@
+# The patch-coverage gate lives in //python/coverage_gate, under the Python
+# conventions like every other program; this alias keeps the documented
+# command: bazel run //tools/coverage:gate (the root //:coverage_gate alias
+# is the same target).
+alias(
+    name = "gate",
+    actual = "//python/coverage_gate:gate",
+    visibility = ["//visibility:public"],
+)

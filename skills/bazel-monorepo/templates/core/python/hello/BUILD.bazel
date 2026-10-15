@@ -1,0 +1,13 @@
+load("//tools/python:defs.bzl", "py_binary")
+
+# A program (docs/conventions/python.md): the root file parses arguments
+# and dispatches; the logic lives in the module libraries beside it.
+#
+#   bazel run //python/hello -- world
+py_binary(
+    name = "hello",
+    srcs = ["hello.py"],
+    main = "hello.py",
+    visibility = ["//visibility:public"],
+    deps = ["//python/hello/greeting:hello_greeting"],
+)

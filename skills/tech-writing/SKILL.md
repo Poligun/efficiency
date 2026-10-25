@@ -49,6 +49,7 @@ Run the deterministic scan first:
 ```bash
 # Replace $SKILL_DIR with the absolute path of the directory this SKILL.md
 # lives in before running; the command works from any cwd once you do.
+# On native Windows `python3` is often the Microsoft Store stub (exit 49); use `python`.
 python3 "$SKILL_DIR/scripts/prose_checks.py" scan <targets...>
 ```
 

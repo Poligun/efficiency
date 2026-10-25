@@ -32,6 +32,7 @@ picking whichever one sounded more certain.
 
 ```bash
 # SKILL_DIR is the directory this SKILL.md lives in — substitute the real path.
+# On native Windows `python3` is often the Microsoft Store stub (exit 49); use `python`.
 python3 "$SKILL_DIR/scripts/scope_detect.py" --pretty
 ```
 

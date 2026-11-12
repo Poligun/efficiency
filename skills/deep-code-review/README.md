@@ -18,6 +18,8 @@ checked before it reaches the report.
 
 ## The pipeline
 
+A review runs through eight steps, and Step 4 dispatches the aspect agents in parallel:
+
 ```mermaid
 flowchart TB
     U([&quot;deep review my branch&quot;]) --> S1
@@ -62,6 +64,9 @@ activates aspects from that. Only source and wire-contract lines count toward si
 | large refactor | all four, sharded | 25–35 |
 
 ## Who does what, and why
+
+The orchestrator keeps part of the work inline and dispatches the rest to fresh-context
+agents on two model tiers:
 
 ```mermaid
 flowchart LR
@@ -154,6 +159,7 @@ the only ones with human latency in them.
 
 Business-logic review needs domain *intent*, and intent isn't in the diff. So it
 accumulates — under rules strict enough that it never becomes a hallucination amplifier.
+The skill locates the knowledge tree in this order:
 
 ```mermaid
 flowchart LR

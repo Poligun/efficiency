@@ -131,6 +131,8 @@ state with the same resolutions.
 
 ### Idea
 
+An idea moves through these states:
+
 ```mermaid
 stateDiagram-v2
     [*] --> backlog : captured
@@ -148,6 +150,8 @@ original idea survives as a concise section, `type/idea` becomes
 epics; the idea then closes `resolution/done` linking its children.
 
 ### Epic
+
+An epic moves through these states:
 
 ```mermaid
 stateDiagram-v2
@@ -169,6 +173,8 @@ by `/project-manager` — the same shape as the `resolution/done` backfill.
 
 ### Task
 
+A task moves through these states:
+
 ```mermaid
 stateDiagram-v2
     [*] --> ready : ticket skill, or filed self-sufficient
@@ -188,6 +194,8 @@ work: coding, writing and research, operational chores. The body says
 which.
 
 ### Bug
+
+A bug moves through these states:
 
 ```mermaid
 stateDiagram-v2

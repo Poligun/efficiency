@@ -169,6 +169,38 @@ D3 in voice.md owns the condescension markers; treat them as word-level flags un
 rule rather than as entries here. The full ~500-entry word list is deliberately not adopted; the exclusion is recorded in
 [meta/open-questions.md](../meta/open-questions.md).
 
+### W8: Write absolute dates in documents read after the session that wrote them
+Source: [devstyle/timeless-documentation], [house]. Check: mechanical (detection) plus
+judgment (the scope).
+
+Relative time words lose their reference point once a document outlives the session that
+wrote it: *today*, *recently*, *currently*, *latest*, *soon*, and *new* leave the reader
+unable to recover when the statement held. In a durable document (an ADR, a research
+note, a README, a design doc), write the date in ISO 8601 form: *on 2026-01-15*, *as of
+2026-01-15*. When the whole document describes one moment, state the as-of date once in
+the opening (D4 in structure.md) and keep the body in the present tense (S3 in voice.md).
+A comparative such as *new* needs a reference point, a date or a version; without one,
+cut it.
+
+Session-bound prose is out of scope. A PR description, a handoff, or a review comment is
+read inside its own context, where *now* means the state the change produces. S10's
+replacement of *at this point in time* by *now* stands; in a durable document both forms
+are relative, and W8 requires the date. Technical terms that contain these words are not
+relative time: *the current transaction*, *the most recent value in the window*, a
+release channel or image tag named `latest`.
+
+### W9: Make the verb findable on the first pass
+Source: [house]. Check: judgment.
+
+Many technical nouns are also common verbs: *update*, *request*, *retry*, *block*,
+*hold*, *transfer*, *write*. When two of them stand together without a determiner, the
+reader cannot tell which word is the verb until the sentence fails to parse and is read
+again: *Retries block requests until updates clear.* Add a determiner, use the singular,
+or choose a compound noun that fixes the part of speech: *Each retry attempt blocks the
+pending request until the update job finishes.* Terms of art stay (W5): the repair adds
+words around the term and never swaps it for a paraphrase. Whether a coined two-noun term
+needs a definition at all is W3's question, not this rule's.
+
 ---
 
 Portions of this file are modifications based on work created and shared by Google and used

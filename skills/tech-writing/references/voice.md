@@ -165,7 +165,8 @@ does the verb name actual I/O or computation, or does it ascribe intent, percept
 speech?
 
 ### S3: Address the reader as "you"; refer to software in the third person; use the present tense
-Source: [devstyle/person], [devstyle/tense]. Check: mechanical.
+Source: [devstyle/person], [devstyle/tense], [house]. Check: mechanical (person and tense)
+plus judgment (the actor clause).
 
 Use the second person, or the imperative, for the reader. Refer to software by name or as
 "it": the software is an object with behavior, not a companion, and third-person reference
@@ -173,6 +174,13 @@ reinforces S2. Describe behavior in the present tense; software that "will retur
 returns it now for any reader running it now. Do not use the hypothetical "would": *the
 request would fail* → *the request fails*. Reserve the future tense for genuinely future
 events, such as a deprecation with a date.
+
+An imperative names no subject, so it casts the reader as the actor. When a document has more than one
+possible actor, such as a cross-team guide or a design doc that names several services,
+name the actor in running prose and keep the imperative for procedures, numbered steps (P8
+in structure.md), and lists of goals: *Cache the token and rotate it daily* → *The client
+service caches the token and rotates it daily*. A document with one reader and one actor,
+such as a runbook or a skill's instructions, keeps the imperative throughout.
 
 ### S4: Do not use assistant-prose constructions
 Source: [house]. Check: mechanical (patterns are greppable) plus judgment on density.

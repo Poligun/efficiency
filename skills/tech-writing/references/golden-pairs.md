@@ -172,6 +172,71 @@ The near miss is a conversational aside that respects the reader, which takes no
 *This migration is tedious; budget an afternoon.* Conversational register by section
 intent is permitted; the violation is condescension (merge M6).
 
+## S3: the actor in running prose (house)
+
+The pair below names the actor in a document with several possible actors:
+
+### S3-a: constructed (house)
+
+The bad half opens the summary paragraph of a guide that two teams and three services
+read.
+
+- Bad: *Cache the token in the client and rotate it daily.*
+- Good: *The client service caches the token and rotates it daily.*
+
+The near miss is an imperative in a numbered procedure, or anywhere in a document whose
+only actor is the reader, which takes no finding: *1. Open the configuration file.*
+
+## W8: relative time words (house)
+
+Each pair below replaces a relative time word with a date or a fixed reference point:
+
+### W8-a: sourced, Google developer documentation style guide, timeless documentation page
+
+- Bad: *The emulator now supports the following filters:*
+- Good: *The emulator supports the following filters:*
+
+### W8-b: constructed (house)
+
+The bad half sits in an ADR, which is read long after the session that wrote it.
+
+- Bad: *The scheduler currently retries failed jobs three times; the new backoff landed
+  recently.*
+- Good: *As of 2026-01-15, the scheduler retries failed jobs three times; exponential
+  backoff landed in v2.3.*
+
+Two near misses take no finding: a technical term that contains a time word (*the
+current transaction*, an image tag named `latest`), and *now* in a PR description, which
+is read in the context of the change it describes.
+
+## W9: verb-noun homographs (house)
+
+The pair below makes the verb findable on the first pass:
+
+### W9-a: constructed, adapted from the example in issue #37
+
+- Bad: *Retries block requests until updates clear.*
+- Good: *Each retry attempt blocks the pending request until the update job finishes.*
+
+The near miss is a homograph whose part of speech a determiner already fixes, which takes
+no finding: *The client retries failed requests.*
+
+## P12: diagrams (house)
+
+The pair below introduces a diagram and aligns its labels with the prose:
+
+### P12-a: constructed (house)
+
+- Bad: a heading reading *Token refresh*, followed directly by a Mermaid flowchart whose
+  nodes read *Svc* and *IdP* and whose edge reads *1. refresh*, in a document whose prose
+  calls the two parties the client service and the identity provider.
+- Good: the sentence *The client service refreshes its token against the identity provider
+  in this order:*, followed by a Mermaid sequence diagram whose participants read *client
+  service* and *identity provider*.
+
+The near miss is a fenced code block that is not a diagram, such as a shell command,
+which P12 does not govern.
+
 ---
 
 Portions of this file are modifications based on work created and shared by Google and used

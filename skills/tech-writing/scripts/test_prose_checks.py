@@ -116,6 +116,59 @@ class TestAnthropomorphicVerbs(unittest.TestCase):
         verbs = [h["match"] for h in self.hits(text)]
         self.assertEqual(verbs, ["think", "expect"])
 
+    def test_human_noun_outside_subject_position_does_not_skip(self):
+        # Review of #41: an object, a prepositional object or a modified noun
+        # is not the verb's subject.
+        text = (
+            "The endpoint that authenticates users expects a bearer token.\n\n"
+            "The API for developers expects JSON.\n\n"
+            "The CSV reader expects UTF-8.\n\n"
+            "The Kubernetes operator wants a ConfigMap.\n\n"
+            "The lock owner knows the lease.\n"
+        )
+        verbs = [h["match"] for h in self.hits(text)]
+        self.assertEqual(verbs, ["expects", "expects", "expects", "wants", "knows"])
+
+    def test_connectives_after_software_subjects_still_flagged(self):
+        text = (
+            "The workers poll the queue and expect a lease.\n\n"
+            "Proxies forward or refuse the call.\n\n"
+            "The proxy has to speak the PostgreSQL wire protocol.\n\n"
+            "The design requires the client to know the schema.\n"
+        )
+        verbs = [h["match"] for h in self.hits(text)]
+        self.assertEqual(verbs, ["expect", "refuse", "speak", "know"])
+
+    def test_imperative_chains_and_wh_infinitives_skipped(self):
+        text = (
+            "Run the scan and decide which hits stand.\n\n"
+            "Turn the aspect on and say why.\n\n"
+            "An entry says where to look and what to ask.\n"
+        )
+        self.assertEqual([h["match"] for h in self.hits(text)], ["says"])
+
+    def test_imperative_after_introductory_clause_skipped(self):
+        text = (
+            "If the base branch is unclear, ask the user.\n\n"
+            "Otherwise, say so.\n\n"
+            "Before reporting anything, decide what stands.\n\n"
+            "Workers, by default, expect a lease.\n"
+        )
+        self.assertEqual([h["match"] for h in self.hits(text)], ["expect"])
+
+    def test_markdown_blocks(self):
+        text = (
+            "> The workers\n> expect a lease.\n\n"
+            "> The user\n> asks for a review.\n\n"
+            "| 1 | Ask the user |\n\n"
+            "- [ ] Ask the user for the branch.\n\n"
+            "### Steps\nAsk the user for the branch.\n\n"
+            "Don’t ask the user twice.\n\n"
+            "The *user* asks for a rebase.\n"
+        )
+        hits = self.hits(text)
+        self.assertEqual([(h["line"], h["match"]) for h in hits], [(2, "expect")])
+
     def test_wrapped_line_is_not_a_sentence_start(self):
         text = "The references and the gates\nexpect a CI runner.\n"
         hits = self.hits(text)
@@ -156,6 +209,21 @@ class TestRelativeTime(unittest.TestCase):
         hits = self.hits(text)
         self.assertEqual([(h["line"], h["match"]) for h in hits], [(5, "recently")])
 
+    def test_fences_follow_commonmark(self):
+        # A longer fence holds inner shorter fences; a tilde fence works the
+        # same; an info string never closes a fence.
+        text = (
+            "````markdown\n```sh\necho today\n```\nsoon\n````\n"
+            "~~~\ncurrently\n~~~\n"
+            "```\n```python\nlatest\n```\n"
+            "Use ``today`` here, but recently it moved.\n"
+        )
+        hits = self.hits(text)
+        self.assertEqual([(h["line"], h["match"]) for h in hits], [(14, "recently")])
+
+    def test_as_soon_as_not_flagged(self):
+        self.assertEqual(self.hits("Retry as soon as the lease expires.\n"), [])
+
 
 class TestDiagrams(unittest.TestCase):
     def hits(self, text):
@@ -185,6 +253,38 @@ class TestDiagrams(unittest.TestCase):
         hits = self.hits(text)
         self.assertEqual([(h["line"], h["match"]) for h in hits],
                          [(5, "1."), (6, "2."), (7, "3.")])
+
+    def test_more_label_forms(self):
+        text = (
+            "The flow runs as follows:\n\n"
+            "````mermaid\nflowchart LR\n"
+            "  A == 1. Send ==> B\n"
+            "  B -. 2) Ack .-> C\n"
+            "  C>3. Close] --> D[/4. Done/]\n"
+            "  E[Retry (2. attempt) later]\n"
+            "````\n"
+        )
+        hits = self.hits(text)
+        self.assertEqual([(h["line"], h["match"]) for h in hits],
+                         [(5, "1."), (6, "2)"), (7, "3."), (7, "4.")])
+
+    def test_bold_colon_introduction_accepted(self):
+        text = "**Pipeline:**\n\n```mermaid\nflowchart LR\n  A --> B\n```\n"
+        self.assertEqual(self.hits(text), [])
+
+    def test_scan_cli_reports_new_rules_with_notes(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "doc.md")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("## Flow\n\n```mermaid\nflowchart LR\n  A --> B\n```\n\n"
+                        "The parser currently thinks.\n")
+            proc = subprocess.run([sys.executable, SCRIPT, "scan", path],
+                                  capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 1)
+        findings = json.loads(proc.stdout)["findings"]
+        self.assertEqual([(f["line"], f["rule"]) for f in findings],
+                         [(3, "P12"), (8, "S2"), (8, "W8")])
+        self.assertIn("note", findings[0])
 
     def test_non_mermaid_fence_ignored(self):
         text = "## Build\n\n```sh\nmake [1. all]\n```\n"

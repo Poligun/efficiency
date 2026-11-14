@@ -10,11 +10,12 @@ This file holds recorded-but-deferred improvements, per the layout the review sk
   (detection) plus judgment (the verdict)". If review runs disagree too often on the
   verdicts, ratify numeric thresholds (hits per hundred words, run length) and promote
   the rules to fully mechanical.
-- **S2 skip precision.** The subject heuristics (issue #39) cut unique S2 candidates on
-  the repo's own docs from 152 to 97 on 2026-11-12. One sampled skip was a real
-  candidate: a bare verb after "and" whose subject is a document ("the courses ... say
-  almost nothing"). If such misses recur, limit the connective skip to clauses whose
-  sentence already opened as an imperative.
+- **S2 skip recall.** The subject heuristics (issue #39) cut unique S2 candidates on the
+  repo's own docs from 152 to 118 on 2026-11-14, and a sample of the skips held no real
+  candidate. They favor precision: a human subject clears a verb only as the unmodified
+  head of its clause, and a connective skip needs a sentence that opened as an imperative
+  from a fixed verb list. If reader-addressed candidates still dominate review noise,
+  widen that list before loosening the subject test.
 - **Code masking for S2 and W2.** The W8 scan skips inline code and fenced blocks; the S2
   and W2 scans do not. If identifiers or code comments produce noise, reuse the W8
   masking.

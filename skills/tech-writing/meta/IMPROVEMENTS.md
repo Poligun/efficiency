@@ -10,9 +10,15 @@ This file holds recorded-but-deferred improvements, per the layout the review sk
   (detection) plus judgment (the verdict)". If review runs disagree too often on the
   verdicts, ratify numeric thresholds (hits per hundred words, run length) and promote
   the rules to fully mechanical.
-- **Scanner subject-awareness.** scripts/prose_checks.py flags anthropomorphic verbs
-  lexically, so human subjects ("the integrator asks") produce candidates. If candidate
-  noise becomes a problem in practice, add a subject heuristic before the verb match.
+- **S2 skip recall.** The subject heuristics (issue #39) cut unique S2 candidates on the
+  repo's own docs from 152 to 118 on 2026-11-14, and a sample of the skips held no real
+  candidate. They favor precision: a human subject clears a verb only as the unmodified
+  head of its clause, and a connective skip needs a sentence that opened as an imperative
+  from a fixed verb list. If reader-addressed candidates still dominate review noise,
+  widen that list before loosening the subject test.
+- **Code masking for S2 and W2.** The W8 scan skips inline code and fenced blocks; the S2
+  and W2 scans do not. If identifiers or code comments produce noise, reuse the W8
+  masking.
 - **Sidecar-to-frontmatter sync.** agents/openai.yaml hand-restates a compressed form of
   SKILL.md's description with no check tying them together, unlike the digest's
   traceability. If the description is retuned and the sidecar drifts, add a deterministic

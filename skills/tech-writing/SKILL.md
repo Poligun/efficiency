@@ -59,8 +59,11 @@ during the read instead. An exit of 1 with JSON on stdout means candidates were 
 which is the normal outcome for any document worth reviewing, not a failed command; any
 other outcome (no JSON, a bad path, a usage error) is a real error. The scan emits
 rule-tagged candidates, not verdicts: judge each hit against the rule it names before
-reporting it, and expect hits that survive judgment, such as a flagged verb whose subject
-is a person rather than the software. Then walk the document
+reporting it, and expect hits that judgment clears, such as a flagged verb whose subject
+is an agent or a client acting for a person, or *today* inside a quoted example. The scan
+already skips a verb whose clause opens with a person, a role, or a team as its subject,
+and a bare verb addressed to the reader; both skips are conservative, so a human subject
+in another position still yields a candidate. Then walk the document
 top-down by level: document (D rules), paragraph and block (P), sentence (S), word (W).
 At the S and W levels, adjudicate the scan's hits rather than re-hunting them, and spend
 the manual pass on what the lexical lists cannot catch.

@@ -128,7 +128,7 @@ prose, not in the cells.
 ## Figures
 
 ### P12: Introduce each diagram with a colon sentence and label it with the prose's terms
-Source: [house], extending P9 and W3. Check: mechanical (the introduction, list-marker
+Source: [house]. Check: mechanical (the introduction, list-marker
 labels) plus judgment (label terms, one question per diagram).
 
 A diagram is a block element and takes the same introduction as a list or a table (P9): a
@@ -137,16 +137,19 @@ ordering, or the states an object moves through. A reader who reaches a diagram 
 that sentence has to infer its purpose from the nodes.
 
 Label every node and edge with the term the prose uses for the same thing (W3 in
-clarity.md); a component the text calls *the ingest worker* is not *Loader* in the
+clarity.md); a component the text calls *the upload worker* is not *Loader* in the
 diagram. Draw one diagram per question the reader has. A component view answers who owns
 what, a sequence view answers what happens in which order, and a diagram that mixes the
-two answers both poorly.
+two views answers both questions poorly. When the diagram language restricts identifiers,
+such as Mermaid state names that cannot contain a hyphen, give the node a display label
+that carries the prose's term.
 
-In Mermaid, do not open a flowchart label with a number, a period, and a space (*1.
-Send*). Mermaid 11 releases parse such a label as a Markdown list and render "Unsupported
-markdown: list" in its place (mermaid-js/mermaid issues 5824 and 6099), and a renderer
-pinned to an affected release keeps the failure after upstream fixes it. Number steps
-without the period (*Step 1: send*), or let a sequence diagram carry the order.
+In Mermaid, do not open a flowchart label with a list marker: a number, a period, and a
+space (*1. Send*), or a hyphen and a space. Mermaid releases from 11.0.0 up to 11.13.0
+parse such a label as a Markdown list and render "Unsupported markdown: list" in its place
+(mermaid-js/mermaid issue 5824), and a renderer pinned to an affected release keeps the
+failure. Number steps without the period (*Step 1: send*), or let a sequence diagram carry
+the order.
 
 ---
 

@@ -135,6 +135,7 @@ An idea moves through these states:
 
 ```mermaid
 stateDiagram-v2
+    state "needs-spec" as needs_spec
     [*] --> backlog : captured
     backlog --> needs_spec : committed
     needs_spec --> Epic : graduates in place (spec written)
@@ -155,6 +156,9 @@ An epic moves through these states:
 
 ```mermaid
 stateDiagram-v2
+    state "needs-spec" as needs_spec
+    state "needs-tickets" as needs_tickets
+    state "in-flight" as in_flight
     [*] --> needs_spec : committed without a spec
     [*] --> needs_tickets : a spec skill publishes the spec
     needs_spec --> needs_tickets : spec written
@@ -177,6 +181,9 @@ A task moves through these states:
 
 ```mermaid
 stateDiagram-v2
+    state "needs-spec" as needs_spec
+    state "in progress" as in_progress
+    state "in review" as in_review
     [*] --> ready : ticket skill, or filed self-sufficient
     ready --> in_progress : assignee + branch (native)
     in_progress --> in_review : PR open (native)
@@ -199,6 +206,9 @@ A bug moves through these states:
 
 ```mermaid
 stateDiagram-v2
+    state "needs-spec" as needs_spec
+    state "in progress" as in_progress
+    state "in review" as in_review
     [*] --> backlog : reported
     backlog --> ready : confirmed and prioritized
     backlog --> needs_spec : fix needs design

@@ -61,7 +61,7 @@ The table pairs each bloated phrase with its replacement:
 
 | Bloated | Short |
 |---|---|
-| at this point in time | now |
+| at this point in time | now (a date in a durable document, W8) |
 | is able to, has the ability to | can |
 | in order to | to |
 | due to the fact that | because |
@@ -179,13 +179,14 @@ unable to recover when the statement held. In a durable document (an ADR, a rese
 note, a README, a design doc), write the date in ISO 8601 form: *on 2026-01-15*, *as of
 2026-01-15*. When the whole document describes one moment, state the as-of date once in
 the opening (D4 in structure.md) and keep the body in the present tense (S3 in voice.md).
-A comparative such as *new* needs a reference point, a date or a version; without one,
-cut it.
+When the statement holds without the time word, cut the word instead: *the emulator now
+supports* → *the emulator supports*. A comparative such as *new* needs a reference point:
+a date or a version. Without one, cut it.
 
 Session-bound prose is out of scope. A PR description, a handoff, or a review comment is
-read inside its own context, where *now* means the state the change produces. S10's
-replacement of *at this point in time* by *now* stands; in a durable document both forms
-are relative, and W8 requires the date. Technical terms that contain these words are not
+read inside its own context, where *now* means the state the change produces. In a
+durable document, S10's *now* is relative too, and its table row points here. Technical
+terms that contain these words are not
 relative time: *the current transaction*, *the most recent value in the window*, a
 release channel or image tag named `latest`.
 
@@ -195,10 +196,12 @@ Source: [house]. Check: judgment.
 Many technical nouns are also common verbs: *update*, *request*, *retry*, *block*,
 *hold*, *transfer*, *write*. When two of them stand together without a determiner, the
 reader cannot tell which word is the verb until the sentence fails to parse and is read
-again: *Retries block requests until updates clear.* Add a determiner, use the singular,
-or choose a compound noun that fixes the part of speech: *Each retry attempt blocks the
-pending request until the update job finishes.* Terms of art stay (W5): the repair adds
-words around the term and never swaps it for a paraphrase. Whether a coined two-noun term
+again: *Retries block requests until updates clear.* Prefer a determiner or the
+singular, which fix the part of speech without renaming anything: *Each retry blocks the
+pending request until the update finishes.* A compound noun such as *retry attempt* also
+works, but it is a new term, so it replaces the old one everywhere in the document (W3).
+Terms of art stay (W5): the repair adds words around the term and never swaps it for a
+paraphrase. Whether a coined two-noun term
 needs a definition at all is W3's question, not this rule's.
 
 ---

@@ -185,11 +185,13 @@ read.
 - Good: *The client service caches the token and rotates it daily.*
 
 The near miss is an imperative in a numbered procedure, or anywhere in a document whose
-only actor is the reader, which takes no finding: *1. Open the configuration file.*
+only actor is the reader, which takes no finding: *1. Open the configuration file.* An
+imperative whose own sentence names the reader as the actor is a near miss too: *If your
+handler mutates external state, attach a key before enabling retries.*
 
 ## W8: relative time words (house)
 
-Each pair below replaces a relative time word with a date or a fixed reference point:
+Each pair below either cuts a relative time word the statement does not need or replaces it with a date or a version:
 
 ### W8-a: sourced, Google developer documentation style guide, timeless documentation page
 
@@ -200,9 +202,9 @@ Each pair below replaces a relative time word with a date or a fixed reference p
 
 The bad half sits in an ADR, which is read long after the session that wrote it.
 
-- Bad: *The scheduler currently retries failed jobs three times; the new backoff landed
+- Bad: *The scheduler currently retries a failed job three times; the new backoff landed
   recently.*
-- Good: *As of 2026-01-15, the scheduler retries failed jobs three times; exponential
+- Good: *As of 2026-01-15, the scheduler retries a failed job three times; exponential
   backoff landed in v2.3.*
 
 Two near misses take no finding: a technical term that contains a time word (*the
@@ -213,13 +215,13 @@ is read in the context of the change it describes.
 
 The pair below makes the verb findable on the first pass:
 
-### W9-a: constructed, adapted from the example in issue #37
+### W9-a: constructed (house)
 
 - Bad: *Retries block requests until updates clear.*
-- Good: *Each retry attempt blocks the pending request until the update job finishes.*
+- Good: *Each retry blocks the pending request until the update finishes.*
 
-The near miss is a homograph whose part of speech a determiner already fixes, which takes
-no finding: *The client retries failed requests.*
+The near miss is a homograph whose part of speech a determiner after it fixes, which takes
+no finding: *The client retries the failed request.*
 
 ## P12: diagrams (house)
 

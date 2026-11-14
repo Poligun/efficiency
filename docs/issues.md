@@ -131,8 +131,11 @@ state with the same resolutions.
 
 ### Idea
 
+An idea moves through these states:
+
 ```mermaid
 stateDiagram-v2
+    state "needs-spec" as needs_spec
     [*] --> backlog : captured
     backlog --> needs_spec : committed
     needs_spec --> Epic : graduates in place (spec written)
@@ -149,8 +152,13 @@ epics; the idea then closes `resolution/done` linking its children.
 
 ### Epic
 
+An epic moves through these states:
+
 ```mermaid
 stateDiagram-v2
+    state "needs-spec" as needs_spec
+    state "needs-tickets" as needs_tickets
+    state "in-flight" as in_flight
     [*] --> needs_spec : committed without a spec
     [*] --> needs_tickets : a spec skill publishes the spec
     needs_spec --> needs_tickets : spec written
@@ -169,8 +177,13 @@ by `/project-manager` — the same shape as the `resolution/done` backfill.
 
 ### Task
 
+A task moves through these states:
+
 ```mermaid
 stateDiagram-v2
+    state "needs-spec" as needs_spec
+    state "in progress" as in_progress
+    state "in review" as in_review
     [*] --> ready : ticket skill, or filed self-sufficient
     ready --> in_progress : assignee + branch (native)
     in_progress --> in_review : PR open (native)
@@ -189,8 +202,13 @@ which.
 
 ### Bug
 
+A bug moves through these states:
+
 ```mermaid
 stateDiagram-v2
+    state "needs-spec" as needs_spec
+    state "in progress" as in_progress
+    state "in review" as in_review
     [*] --> backlog : reported
     backlog --> ready : confirmed and prioritized
     backlog --> needs_spec : fix needs design

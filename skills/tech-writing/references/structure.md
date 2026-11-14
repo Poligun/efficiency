@@ -2,11 +2,11 @@
 
 Load this file when organizing a document or checking its skeleton: what the opening must
 establish, how sections and headings are formed, how paragraphs are built, and when prose
-becomes a list or a table. Register and tone live in [voice.md](voice.md); sentence
+becomes a list, a table, or a diagram. Register and tone live in [voice.md](voice.md); sentence
 mechanics live in [clarity.md](clarity.md).
 
 In this file, `D` rules govern the document and its headings, and `P` rules govern
-paragraphs and block elements (lists, tables). ID families, source-tag syntax, the ID
+paragraphs and block elements (lists, tables, diagrams). ID families, source-tag syntax, the ID
 allocation policy, and the binding authoring-time merges (M1-M7) are defined in
 [voice.md](voice.md).
 
@@ -124,6 +124,32 @@ A table earns its place when readers compare values across a small set of dimens
 each column a header, and keep cells to data rather than prose; a cell that needs full
 sentences is a section wearing a table's clothes. Explanations belong in the surrounding
 prose, not in the cells.
+
+## Figures
+
+### P12: Introduce each diagram with a colon sentence and label it with the prose's terms
+Source: [house]. Check: mechanical (the introduction, list-marker
+labels) plus judgment (label terms, one question per diagram).
+
+A diagram is a block element and takes the same introduction as a list or a table (P9): a
+sentence ending in a colon that states what the diagram shows, such as ownership,
+ordering, or the states an object moves through. A reader who reaches a diagram without
+that sentence has to infer its purpose from the nodes.
+
+Label every node and edge with the term the prose uses for the same thing (W3 in
+clarity.md); a component the text calls *the upload worker* is not *Loader* in the
+diagram. Draw one diagram per question the reader has. A component view answers who owns
+what, a sequence view answers what happens in which order, and a diagram that mixes the
+two views answers both questions poorly. When the diagram language restricts identifiers,
+such as Mermaid state names that cannot contain a hyphen, give the node a display label
+that carries the prose's term.
+
+In Mermaid, do not open a flowchart label with a list marker: a number, a period, and a
+space (*1. Send*), or a hyphen and a space. Mermaid releases from 11.0.0 up to 11.13.0
+parse such a label as a Markdown list and render "Unsupported markdown: list" in its place
+(mermaid-js/mermaid issue 5824), and a renderer pinned to an affected release keeps the
+failure. Number steps without the period (*Step 1: send*), or let a sequence diagram carry
+the order.
 
 ---
 

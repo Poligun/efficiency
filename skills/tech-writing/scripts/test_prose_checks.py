@@ -124,10 +124,10 @@ class TestRuleIdCollection(unittest.TestCase):
             ids = pc.collect_rule_ids([path])
         self.assertEqual(ids, {"D2", "S2"})
 
-    def test_real_corpus_has_41_rules(self):
+    def test_real_corpus_has_44_rules(self):
         refs = pc.default_reference_paths()
         ids = pc.collect_rule_ids(refs)
-        self.assertEqual(len(ids), 41)
+        self.assertEqual(len(ids), 44)
         self.assertIn("D1", ids)
         self.assertIn("W7", ids)
 
